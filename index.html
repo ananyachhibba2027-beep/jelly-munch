@@ -16,6 +16,8 @@
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9445442957849545"
      crossorigin="anonymous"></script>
 <style>body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}.legal a{color:inherit;opacity:.75;font-size:13px}
+#toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:50;max-width:min(92vw,420px);background:var(--cream);color:var(--ink);border:3px solid var(--ink);border-radius:18px;box-shadow:0 5px 0 var(--ink);padding:10px 16px;font-weight:700;text-align:center}
+.pack[aria-busy="true"],.btn[aria-busy="true"]{opacity:.6;pointer-events:none}
 </style>
 <title>Jelly Munch</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -261,6 +263,8 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
   </div>
 </div>
 
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
 <!-- Home -->
 <section class="screen home" id="scrHome">
   <div class="panel">
@@ -406,26 +410,26 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
   </div>
 </section>
 
-<!-- Life shop (demo, no real payment) -->
+<!-- Life shop -->
 <section class="screen" id="scrShop" hidden>
   <div class="panel">
-    <div class="eyebrow">Life shop · demo, no real payment</div>
+    <div class="eyebrow">Life shop</div>
     <h2>Get back in the game</h2>
-    <p>Extra lives are saved for later. One gets used right now.</p>
+    <p>Lives are saved for later, so you can pick up right where you left off.</p>
     <div class="packs">
       <button class="pack" data-n="1" data-p="19"><span class="hs">♥</span><span class="nm">1 life<small>A quick save</small></span><span class="pr">₹19</span></button>
       <button class="pack" data-n="5" data-p="69"><span class="tag">Best value</span><span class="hs">♥×5</span><span class="nm">5 lives<small>For a few tough levels</small></span><span class="pr">₹69</span></button>
       <button class="pack" data-n="10" data-p="119"><span class="hs">♥×10</span><span class="nm">10 lives<small>Never get stuck again</small></span><span class="pr">₹119</span></button>
     </div>
-    <p class="small">Demo only: tapping a pack adds the lives without charging anything. Real payments would go through the app store later.</p>
+    <p class="small">Secure checkout by Dodo Payments. Sign in first to keep your lives on every device.</p>
     <button class="link" id="shopBack">Back</button>
   </div>
 </section>
 
-<!-- Jelly Munch Plus (demo, no real payment) -->
+<!-- Jelly Munch Plus -->
 <section class="screen" id="scrPlus" hidden>
   <div class="panel">
-    <div class="eyebrow">Jelly Munch Plus · demo, no real payment</div>
+    <div class="eyebrow">Jelly Munch Plus</div>
     <h2>Go Plus ✨</h2>
     <p id="plusLead">Unlock the full game.</p>
     <ul class="perks">
@@ -440,7 +444,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
       <div class="small" id="plusChai">Less than a cup of chai ☕ for endless levels forever. Includes 5 lives (₹69 on their own).</div>
     </div>
     <button class="btn gold" id="btnPlus">Unlock Plus · ₹149</button>
-    <p class="small">Demo only: tapping unlocks Plus without charging anything. Real payments would go through the app store later.</p>
+    <p class="small">One-time payment, secure checkout by Dodo Payments. Sign in first to keep Plus on every device.</p>
     <button class="link" id="plusLater">Maybe later</button>
   </div>
 </section>
@@ -1260,7 +1264,7 @@ async function setUser(u){
   authUser = u || null; renderAccount();
   if (authUser && authUser.id !== before) await pullMerge();
 }
-function progressSnapshot(){ return {stars:S.stars, best:S.best, skin:S.skin, plus:!!S.plus, lifeBank:S.lifeBank||0, earlyUntil:S.earlyUntil||0, fails:S.fails||0}; }
+function progressSnapshot(){ return {stars:S.stars, best:S.best, skin:S.skin, plus:!!S.plus, lifeBank:S.lifeBank||0, earlyUntil:S.earlyUntil||0, fails:S.fails||0, paidIds:S.paidIds||[]}; }
 function mergeProgress(a, b){
   const out = Object.assign({}, a), sa = a.stars||{}, sb2 = b.stars||{}, ba = a.best||{}, bb = b.best||{};
   out.stars = Object.assign({}, sa); for (const k in sb2) out.stars[k] = Math.max(out.stars[k]||0, sb2[k]||0);
@@ -1269,6 +1273,7 @@ function mergeProgress(a, b){
   out.lifeBank = Math.max(a.lifeBank||0, b.lifeBank||0);
   out.earlyUntil = (a.earlyUntil && b.earlyUntil) ? Math.min(a.earlyUntil, b.earlyUntil) : (a.earlyUntil || b.earlyUntil || 0);
   out.fails = Math.max(a.fails||0, b.fails||0);
+  out.paidIds = [...new Set([...(a.paidIds||[]), ...(b.paidIds||[])])].slice(-200);
   out.skin = a.skin || b.skin || "bubblegum";
   return out;
 }
@@ -1371,8 +1376,60 @@ function showPlus(i){
   screen("scrPlus");
 }
 function buyPlus(){
-  S.plus = true; S.lifeBank = (S.lifeBank||0) + 5; save(); SFX.coin(); confettiBurst();
-  if (plusFor != null) openLevel(plusFor); else showMap();
+  startCheckout(earlyActive() ? "plus_early" : "plus", $("#btnPlus"), plusFor);
+}
+
+/* ---------- real payments (Dodo Payments via /api) ---------- */
+let toastTimer = 0;
+function toast(msg, ms){
+  const t = $("#toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, ms || 4000);
+}
+async function startCheckout(item, btn, resumeLevel){
+  if (btn) btn.setAttribute("aria-busy", "true");
+  SFX.click();
+  try {
+    const r = await fetch("/api/checkout", { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ item, email: authUser && authUser.email || "" }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.url) throw new Error(j.error || "checkout");
+    S.resumeLevel = resumeLevel == null ? null : resumeLevel; save();
+    location.href = j.url;
+  } catch (e) {
+    toast("Couldn't open checkout. Check your connection and try again.");
+    if (btn) btn.removeAttribute("aria-busy");
+  }
+}
+async function handlePaymentReturn(){
+  const q = new URLSearchParams(location.search);
+  if (!q.has("paid")) return;
+  const id = q.get("payment_id"), status = q.get("status");
+  history.replaceState(null, "", location.pathname);
+  if (q.get("paid") === "cancel" || !id) { toast("Payment cancelled. No money was taken."); return; }
+  if (status && status !== "succeeded") { toast("The payment didn't go through. No lives or Plus were added."); return; }
+  S.paidIds = S.paidIds || [];
+  if (S.paidIds.includes(id)) return;
+  toast("Confirming your payment…", 15000);
+  for (let tries = 0; tries < 5; tries++) {
+    try {
+      const r = await fetch("/api/verify?payment_id=" + encodeURIComponent(id));
+      const j = await r.json();
+      if (j.ok) {
+        if (S.paidIds.includes(id)) return;
+        S.paidIds.push(id);
+        if (j.plus) S.plus = true;
+        S.lifeBank = (S.lifeBank||0) + (j.lives||0);
+        const resume = S.resumeLevel; S.resumeLevel = null; save();
+        SFX.coin(); confettiBurst();
+        toast(j.plus ? "Plus unlocked! ✨ Endless levels are yours." : `+${j.lives} ${j.lives > 1 ? "lives" : "life"} saved. Go get 'em!`, 5000);
+        if (resume != null && isUnlocked(resume)) openLevel(resume); else if (j.plus) showMap();
+        return;
+      }
+      if (j.status && j.status !== "processing" && j.status !== "unknown") { toast("The payment didn't go through. No lives or Plus were added."); return; }
+    } catch (e) {}
+    await new Promise(ok => setTimeout(ok, 2500));
+  }
+  toast("We couldn't confirm your payment yet. Reload the page in a minute. If you were charged, email us.", 8000);
 }
 function confettiBurst(){ if (g) for (let k=0;k<3;k++) confetti(4+Math.random()*12, 4+Math.random()*10, 12); }
 function openLevel(i){
@@ -1431,12 +1488,8 @@ function useBankLife(){
   respawn();
 }
 function showShop(){ state = "shop"; SFX.whoosh(); screen("scrShop"); }
-function buyPack(n){
-  S.lifeBank = (S.lifeBank||0) + n; save();
-  SFX.coin();
-  useBankLife();
-  floatText(W/2-.5, W/2-4.5, n > 1 ? `+${n} lives bought (demo). ${n-1} saved.` : "Life bought (demo)", "#3DE0B5", .9);
-  g.floats[g.floats.length-1].max = 2.2;
+function buyPack(n, btn){
+  startCheckout("life" + n, btn, g && !g.demo ? g.i : null);
 }
 function showFail(){
   if (state === "dying") SFX.gameOver();
@@ -1577,7 +1630,7 @@ $("#btnAd").addEventListener("click", () => { SFX.click(); showAd(); });
 $("#btnUseLife").addEventListener("click", () => { SFX.click(); useBankLife(); });
 $("#btnBuy").addEventListener("click", () => { SFX.click(); showShop(); });
 $("#shopBack").addEventListener("click", () => { SFX.click(); showFail(); });
-document.querySelectorAll(".pack").forEach(b => b.addEventListener("click", () => buyPack(+b.dataset.n)));
+document.querySelectorAll(".pack").forEach(b => b.addEventListener("click", () => buyPack(+b.dataset.n, b)));
 $("#btnClaim").addEventListener("click", () => { SFX.click(); claimLife(); });
 $("#adCancel").addEventListener("click", () => { SFX.click(); clearTimeout(adTimer); showFail(); });
 $("#flMap").addEventListener("click", () => { SFX.click(); showMap(); });
@@ -1587,7 +1640,7 @@ $("#wnMap").addEventListener("click", () => { SFX.click(); showMap(); });
 
 /* ---------- boot ---------- */
 if (/netlify\.app$/i.test(location.hostname)) document.documentElement.classList.add("hosted");
-fit(); syncToggles(); showHome(); renderAccount(); initAuth();
+fit(); syncToggles(); showHome(); renderAccount(); initAuth(); handlePaymentReturn();
 requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); });
 })();
 </script>
