@@ -391,9 +391,10 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     <h2 id="flTitle">Oops, tangled!</h2>
     <p id="flText">You munched 5 of 10 fruits.</p>
     <div class="lifebox" id="flBox">
-      <div class="eyebrow">Keep this run going?</div>
+      <div class="eyebrow">Keep going?</div>
       <div class="lifeopts">
-        <button class="btn alt" id="btnAd">Watch a video: +1 heart</button>
+        <button class="btn alt" id="btnAd">Watch a video: +1 try</button>
+        <button class="btn gold" id="btnBuyTry">+1 try · ₹9</button>
       </div>
       <div class="small" id="lifeNote"></div>
     </div>
@@ -412,7 +413,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
       <b id="adCount">5</b>
       <span>A real ad would play here</span>
     </div>
-    <p id="adText">Your extra heart is almost ready…</p>
+    <p id="adText">Your extra try is almost ready…</p>
     <button class="btn" id="btnClaim" hidden>Claim it</button>
     <button class="link" id="adCancel">No thanks</button>
   </div>
@@ -1440,7 +1441,7 @@ async function handlePaymentReturn(){
   if (!q.has("paid")) return;
   const id = q.get("payment_id"), status = q.get("status");
   history.replaceState(null, "", location.pathname);
-  if (q.get("paid") === "cancel" || !id) { toast("Payment cancelled. No money was taken."); return; }
+  if (q.get("paid") === "cancel" || !id) { S.pendingRun = null; save(); toast("Payment cancelled. No money was taken."); return; }
   if (status && status !== "succeeded") { toast("The payment didn't go through. No lives or Plus were added."); return; }
   S.paidIds = S.paidIds || [];
   if (S.paidIds.includes(id)) return;
@@ -1457,6 +1458,7 @@ async function handlePaymentReturn(){
         if (j.refill) { S.lives = Math.max(S.lives, maxLives()); S.livesAt = Date.now(); S.livesUpd = Date.now(); }
         if (j.unlimMs) S.unlimUntil = Math.max(Date.now(), S.unlimUntil||0) + j.unlimMs;
         if (j.lives) addLives(j.lives);
+        if (j.cont) { S.resumeLevel = null; SFX.coin(); const ok = resumePaidRun(); toast(ok ? "+1 try! Your fruits are safe. Go go go 🐍" : "+1 life added ♥", 5000); renderLives(); return; }
         const resume = S.resumeLevel; S.resumeLevel = null; save();
         SFX.coin(); confettiBurst();
         toast(j.plus ? "Plus unlocked! ✨ Endless levels are yours." : j.unlimMs ? "Unlimited lives for 2 hours ∞ Go wild!" : j.refill ? "Lives refilled ♥ Go get 'em!" : `+${j.lives} ${j.lives > 1 ? "lives" : "life"} added. Go get 'em!`, 5000);
@@ -1509,7 +1511,7 @@ function showAd(mode, forLevel){
   state = "ad"; screen("scrAd");
   const total = 5; let left = total;
   $("#btnClaim").hidden = true; $("#adCancel").hidden = false;
-  $("#adText").textContent = adMode === "life" ? "Your free life is almost ready…" : "Your extra heart is almost ready…";
+  $("#adText").textContent = adMode === "life" ? "Your free life is almost ready…" : "Your extra try is almost ready…";
   const tick = () => {
     if (state !== "ad") return;
     $("#adCount").textContent = left;
@@ -1536,6 +1538,20 @@ let shopFor = null;
 function showOutOfLives(i){ shopFor = i == null ? null : i; state = "shop"; SFX.whoosh(); renderLives(); screen("scrShop"); }
 function showShop(){ showOutOfLives(g && !g.demo ? g.i : null); }
 function buyPack(item, btn){ startCheckout(item, btn, shopFor); }
+function buyTry(btn){
+  S.pendingRun = { i:g.i, eaten:g.eaten, t:g.t, charged:!!g.charged, at:Date.now() }; save();
+  startCheckout("try1", btn, null);
+}
+function resumePaidRun(){
+  const pr = S.pendingRun; S.pendingRun = null;
+  if (!pr || Date.now() - pr.at > 60*60*1000 || !isUnlocked(pr.i)) { addLives(1); save(); return false; }
+  if (pr.charged) addLives(1);
+  save();
+  applyWorld(getLevel(pr.i).w); newGame(pr.i, false);
+  g.eaten = pr.eaten; g.t = pr.t; g.lives = 1; g.adUsed = true; updateHud(); shownSec = -1;
+  screen(null); respawn();
+  return true;
+}
 function renderLives(){
   syncLives();
   const un = unlimited(), mx = maxLives(), nx = nextLifeIn();
@@ -1561,11 +1577,13 @@ function showFail(){
   $("#flText").textContent = `Out of hearts. You munched ${g.eaten} of ${g.L.goal} fruits. It happens to the best of us.`;
   if (!g.charged && costsLife(g.i) && !unlimited()) { g.charged = true; spendLife(); save(); }
   // Video offer: always for a player's first 3 game-overs, then about 6 in 10 attempts (decided once per attempt). Buy is always there.
-  if (g.videoRoll === undefined) { S.fails = (S.fails||0) + 1; save(); g.videoRoll = S.fails <= 3 || Math.random() < .6; }
+  if (g.videoRoll === undefined) { S.fails = (S.fails||0) + 1; save(); g.videoRoll = S.fails <= 2 || Math.random() < 1/3; }
   const video = g.videoRoll && !g.adUsed;
   $("#btnAd").hidden = !video;
-  $("#flBox").hidden = !video;
-  $("#lifeNote").textContent = costsLife(g.i) && !unlimited() ? "Watch a short video to keep this run (and your life)." : "Watch a short video to keep this run going.";
+  $("#flBox").hidden = false;
+  $("#btnBuyTry").removeAttribute("aria-busy");
+  const keep = g.eaten > 0 ? `Keep your ${g.eaten} ${g.eaten === 1 ? "fruit" : "fruits"}` : "Pick up where you left off";
+  $("#lifeNote").textContent = keep + (costsLife(g.i) && !unlimited() ? " and no life is used." : ".");
   screen("scrFail"); renderLives();
 }
 function showWin(){
@@ -1687,6 +1705,7 @@ $("#pzRestart").addEventListener("click", () => { SFX.click(); quitRun(); retry(
 $("#pzMap").addEventListener("click", () => { SFX.click(); quitRun(); showMap(); });
 $("#btnRetry").addEventListener("click", () => { SFX.click(); canPlay(g.i) ? retry(g.i) : showOutOfLives(g.i); });
 $("#btnAd").addEventListener("click", () => { SFX.click(); showAd("continue"); });
+$("#btnBuyTry").addEventListener("click", e => buyTry(e.currentTarget));
 $("#homeLives").addEventListener("click", () => { SFX.click(); showOutOfLives(null); });
 $("#pkAd").addEventListener("click", () => { SFX.click(); showAd("life", shopFor); });
 $("#shPlus").addEventListener("click", () => { SFX.click(); showPlus(shopFor); });
