@@ -229,6 +229,14 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
 .tipbox svg{flex:none;width:28px;height:28px}
 @media (max-width:440px){.lvl small{display:none}.hearts svg{width:18px;height:18px}.clock{display:none}.icon{width:40px;height:40px}.ptxt{font-size:18px}}
 @media (prefers-reduced-motion:reduce){.blob{animation:none}.panel,.stars svg,#count.bump{animation:none}}
+.chiprow{align-items:center;flex-wrap:nowrap;gap:8px}
+.livechip{cursor:pointer;font:inherit;font-weight:800;font-size:14px;color:var(--ink)}
+.livechip .jh{color:var(--pink);-webkit-text-stroke:1px var(--ink)}
+.livechip .jt{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700}
+.livechip .jt:empty{display:none}
+.livesline{font-weight:800;font-size:15px}
+.livesline .jh{color:var(--pink);-webkit-text-stroke:1px var(--ink)}
+.bigtimer{font-family:var(--display);font-size:30px;font-variant-numeric:tabular-nums;color:var(--pink);-webkit-text-stroke:1.5px var(--ink)}
 </style>
 </head>
 <body>
@@ -239,7 +247,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
 <div id="app" class="menu">
   <header id="hud">
     <div class="lvl"><small id="hudWorld">Candy Garden</small><b id="hudLevel">1-1</b></div>
-    <div class="hearts" id="hearts" aria-label="3 lives left"></div>
+    <div class="hearts" id="hearts" aria-label="3 hearts left"></div>
     <div class="prog">
       <div class="bar" aria-hidden="true"><i id="progFill"></i></div>
       <span class="ptxt" id="progText">0/8</span>
@@ -271,7 +279,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     <h1 class="title"><span class="p">Jelly</span><span class="y">Munch</span></h1>
     <div class="lead">Munch your stress away.</div>
     <p>A quick, juicy break: eat the fruit, grow your jelly snake, dodge the wall and your own tail.</p>
-    <span class="chip"><span class="s">★</span><span id="starTotal">0 stars collected</span></span>
+    <div class="row chiprow"><span class="chip"><span class="s">★</span><span id="starTotal">0 stars collected</span></span><button class="chip livechip" id="homeLives" aria-label="Lives"><span class="jh">♥</span><span class="jn">5</span><span class="jt"></span></button></div>
     <button class="btn" id="btnPlay">Let's munch!</button>
     <div class="row"><button class="btn alt" id="btnSkins">Jelly skins</button><button class="btn alt lbbtn" id="btnLb">🏆 Leaderboard</button></div>
     <div class="row">
@@ -381,15 +389,14 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
   <div class="panel">
     <h2 id="flTitle">Oops, tangled!</h2>
     <p id="flText">You munched 5 of 10 fruits.</p>
-    <div class="lifebox">
-      <div class="eyebrow">Want 1 more life?</div>
+    <div class="lifebox" id="flBox">
+      <div class="eyebrow">Keep this run going?</div>
       <div class="lifeopts">
-        <button class="btn mint" id="btnUseLife" hidden>Use a saved life</button>
-        <button class="btn alt" id="btnAd">Watch a video: +1 life</button>
-        <button class="btn gold" id="btnBuy">Buy a life</button>
+        <button class="btn alt" id="btnAd">Watch a video: +1 heart</button>
       </div>
       <div class="small" id="lifeNote"></div>
     </div>
+    <div class="livesline" id="flLives"></div>
     <button class="btn" id="btnRetry">Run it back</button>
     <button class="link" id="flMap">Level map</button>
   </div>
@@ -404,25 +411,27 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
       <b id="adCount">5</b>
       <span>A real ad would play here</span>
     </div>
-    <p id="adText">Your extra life is almost ready…</p>
-    <button class="btn" id="btnClaim" hidden>Claim extra life</button>
+    <p id="adText">Your extra heart is almost ready…</p>
+    <button class="btn" id="btnClaim" hidden>Claim it</button>
     <button class="link" id="adCancel">No thanks</button>
   </div>
 </section>
 
-<!-- Life shop -->
+<!-- Lives shop / out of lives -->
 <section class="screen" id="scrShop" hidden>
   <div class="panel">
-    <div class="eyebrow">Life shop</div>
-    <h2>Get back in the game</h2>
-    <p>Lives are saved for later, so you can pick up right where you left off.</p>
+    <div class="eyebrow" id="shEyebrow">Lives</div>
+    <h2 id="shTitle">Out of lives 💔</h2>
+    <div class="bigtimer" id="shTimer">Next life in 20:00</div>
+    <p id="shText">Lives refill on their own. Can't wait? Jump back in now.</p>
     <div class="packs">
-      <button class="pack" data-n="1" data-p="19"><span class="hs">♥</span><span class="nm">1 life<small>A quick save</small></span><span class="pr">₹19</span></button>
-      <button class="pack" data-n="5" data-p="69"><span class="tag">Best value</span><span class="hs">♥×5</span><span class="nm">5 lives<small>For a few tough levels</small></span><span class="pr">₹69</span></button>
-      <button class="pack" data-n="10" data-p="119"><span class="hs">♥×10</span><span class="nm">10 lives<small>Never get stuck again</small></span><span class="pr">₹119</span></button>
+      <button class="pack" id="pkAd"><span class="hs">▶</span><span class="nm">Watch a video<small>Get 1 life for free</small></span><span class="pr">Free</span></button>
+      <button class="pack" data-item="refill"><span class="hs">♥</span><span class="nm">Refill all lives<small>Back to full, right now</small></span><span class="pr">₹19</span></button>
+      <button class="pack" data-item="unlim2h"><span class="tag">Best value</span><span class="hs">∞</span><span class="nm">Unlimited lives<small>Play as much as you want for 2 hours</small></span><span class="pr">₹49</span></button>
     </div>
+    <button class="link" id="shPlus">Get Plus: 7 max lives + faster refills ✨</button>
     <p class="small">Secure checkout by Dodo Payments. Sign in first to keep your lives on every device.</p>
-    <button class="link" id="shopBack">Back</button>
+    <button class="link" id="shopBack">Back to the map</button>
   </div>
 </section>
 
@@ -435,13 +444,13 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     <ul class="perks">
       <li><b>Endless levels forever</b> (level 21 and beyond)</li>
       <li><b>Every jelly skin</b>, including Rainbow</li>
-      <li><b>5 bonus lives</b> saved for tough levels</li>
+      <li><b>7 max lives</b> that refill faster, plus 5 bonus lives</li>
       <li>One-time purchase, no subscription</li>
     </ul>
     <div class="pricebox">
       <div class="price"><s id="plusWas" hidden>₹149</s><b id="plusNow">₹149</b><span class="once">one-time</span></div>
       <div class="ebtag" id="plusTimer" hidden></div>
-      <div class="small" id="plusChai">Less than a cup of chai ☕ for endless levels forever. Includes 5 lives (₹69 on their own).</div>
+      <div class="small" id="plusChai">Less than a cup of chai ☕ for endless levels forever. Includes 5 bonus lives and bigger, faster-refilling lives.</div>
     </div>
     <button class="btn gold" id="btnPlus">Unlock Plus · ₹149</button>
     <p class="small">One-time payment, secure checkout by Dodo Payments. Sign in first to keep Plus on every device.</p>
@@ -458,7 +467,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     <div class="stats">
       <div class="stat"><small>Fruits</small><b id="wnFruit">8</b></div>
       <div class="stat"><small>Time</small><b id="wnTime">0:21</b></div>
-      <div class="stat"><small>Lives left</small><b id="wnLives">3</b></div>
+      <div class="stat"><small>Hearts left</small><b id="wnLives">3</b></div>
     </div>
     <span class="chip newbest" id="wnBest" hidden>New best!</span>
     <span class="chip reward" id="wnReward" hidden></span>
@@ -492,7 +501,7 @@ const LEVELS = [
   {w:0, name:"Sprout Patch", goal:8, step:150, tip:"Eat 8 fruits to clear the level. Take it easy!"},
   {w:0, fresh:"Rock candy blocks", name:"Rock Candy Rocks", goal:10, step:140, walls:[...block(5,5,2,2),...block(13,5,2,2),...block(5,13,2,2),...block(13,13,2,2)], tip:"Rock candy is hard. Steer around it!"},
   {w:0, fresh:"Golden fruit (worth 2)", name:"Golden Hour", goal:12, step:132, walls:[...hl(6,4,8),...hl(13,11,15)], golden:true, tip:"Golden fruit counts double. Grab it before it fades!"},
-  {w:1, fresh:"Portals + Extra-life bubbles", name:"Portal Pond", goal:10, step:128, portals:[[3,3],[16,16]], golden:true, tip:"Swim into a portal and pop out of the other one."},
+  {w:1, fresh:"Portals + Extra-heart bubbles", name:"Portal Pond", goal:10, step:128, portals:[[3,3],[16,16]], golden:true, tip:"Swim into a portal and pop out of the other one."},
   {w:1, name:"Frozen Divide", goal:12, step:122, walls:vl(10,3,16), portals:[[3,10],[16,10]], golden:true, start:[5,1,"R"], tip:"An ice wall splits the lake. Portals are your shortcut."},
   {w:1, fresh:"Hopping fruit + Ghost & Slow-mo bubbles", name:"Hoppy Berries", goal:14, step:118, portals:[[3,16],[16,3]], moving:true, golden:true, tip:"Fruit hops around now. Chase it down!"},
   {w:2, fresh:"Fudge mazes + Magnet & Double munch bubbles", name:"Fudge Maze", goal:12, step:116, walls:MAZE, golden:true, tip:"Find the gaps in the fudge walls."},
@@ -554,7 +563,7 @@ const SKINS = [
 const skinCss = k => k.tube === "rainbow" ? "linear-gradient(90deg,#FF5FA2,#FFC93C,#3DE0B5,#5AB8FF,#9B5DE5)" : `linear-gradient(90deg,${k.a[1]},${k.b[0]} 50%,${k.a[1]})`;
 const curSkin = () => SKINS.find(k => k.id === S.skin) || SKINS[0];
 const MAX_LIVES = 5;
-const POWERS = {heart:{label:"Extra life!", col:"#FF5FA2"}, ghost:{label:"Ghost jelly!", col:"#B79CFF"}, slow:{label:"Slow-mo!", col:"#5AB8FF"},
+const POWERS = {heart:{label:"Extra heart!", col:"#FF5FA2"}, ghost:{label:"Ghost jelly!", col:"#B79CFF"}, slow:{label:"Slow-mo!", col:"#5AB8FF"},
   magnet:{label:"Fruit magnet!", col:"#FF6B6B"}, double:{label:"Double munch!", col:"#FFC93C"}, snip:{label:"Snip snip!", col:"#FF9F1C"}, shield:{label:"Bubble shield!", col:"#3DE0B5"}};
 const powersFor = (L,i) => L.endless || i >= 7 ? ["heart","ghost","slow","magnet","double","snip","shield"]
   : i >= 6 ? ["heart","ghost","slow","magnet","double"] : i >= 5 ? ["heart","ghost","slow"] : i >= 3 ? ["heart"] : [];
@@ -589,6 +598,28 @@ const FREE_LEVELS = 20;  // levels 1–20 are free; 21+ need Jelly Munch Plus
 const isPaid = i => i >= FREE_LEVELS && !S.plus;
 const isUnlocked = i => i === 0 || (S.stars[i-1]||0) > 0;  // beat the previous level to open the next
 try { const s = JSON.parse(localStorage.getItem(STORE)); if (s) S = Object.assign(S, s); } catch(e) {}
+/* ---------- game-wide lives (refill over time) ---------- */
+const FREE_LIFE_LEVELS = 5;            // levels 1–5 never cost a life
+const LIVES_MAX = 5, LIVES_MAX_PLUS = 7;
+const REGEN_MS = 20*60*1000, REGEN_MS_PLUS = 15*60*1000;
+const maxLives = () => S.plus ? LIVES_MAX_PLUS : LIVES_MAX;
+const regenMs = () => S.plus ? REGEN_MS_PLUS : REGEN_MS;
+const unlimited = () => (S.unlimUntil||0) > Date.now();
+const costsLife = i => i >= FREE_LIFE_LEVELS;
+function syncLives(){
+  const now = Date.now(), mx = maxLives();
+  if (typeof S.lives !== "number") { S.lives = mx + (S.lifeBank||0); S.livesAt = now; S.lifeBank = 0; S.livesUpd = now; }
+  if (S.lifeBank) { S.lives += S.lifeBank; S.lifeBank = 0; S.livesUpd = now; }
+  if (S.lives >= mx) { S.livesAt = now; return; }
+  const n = Math.floor((now - (S.livesAt||now)) / regenMs());
+  if (n > 0) { S.lives = Math.min(mx, S.lives + n); S.livesAt = S.lives >= mx ? now : (S.livesAt + n*regenMs()); S.livesUpd = now; }
+}
+const nextLifeIn = () => S.lives >= maxLives() ? 0 : Math.max(0, (S.livesAt + regenMs()) - Date.now());
+function addLives(n){ syncLives(); S.lives += n; S.livesUpd = Date.now(); }
+function spendLife(){ syncLives(); if (S.lives >= maxLives()) S.livesAt = Date.now(); S.lives = Math.max(0, S.lives - 1); S.livesUpd = Date.now(); }
+const canPlay = i => !costsLife(i) || unlimited() || (syncLives(), S.lives > 0);
+const fmtLong = ms => { const t = Math.ceil(ms/1000), h = Math.floor(t/3600), m = Math.floor(t/60)%60, s = t%60; return (h ? h + ":" + String(m).padStart(2,"0") : m) + ":" + String(s).padStart(2,"0"); };
+syncLives();
 const save = () => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch(e) {} if (authUser) cloudSave(); };
 const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const calm = () => S.chill || RM;
@@ -758,7 +789,7 @@ function grabPower(pw){
   burst(pw.x, pw.y, POWERS[pw.kind].col, calm()?8:14);
   let label = POWERS[pw.kind].label;
   if (pw.kind === "heart") {
-    if (g.lives < MAX_LIVES) { g.lives++; updateHud(true); label = g.lives > 3 ? `Bonus heart! ${g.lives} lives` : "Extra life! +1 ❤"; }
+    if (g.lives < MAX_LIVES) { g.lives++; updateHud(true); label = g.lives > 3 ? `Bonus heart! ${g.lives} hearts` : "Extra heart! +1 ❤"; }
     else { label = "Full hearts! +1"; g.eaten = Math.min(g.L.goal, g.eaten+1); updateHud(); }
   } else if (pw.kind === "ghost") { g.ghostUntil = g.t + 8; label = "Ghost mode: invincible!"; }
   else if (pw.kind === "slow") g.slowUntil = g.t + 6;
@@ -821,7 +852,7 @@ function respawn(){
   if (onSnake(g.fruit)) g.fruit = spawn();
   if (onSnake(g.gold)) g.gold = null;
   if (onSnake(g.power)) g.power = null;
-  floatText(W/2-.5, W/2-3, g.lives === 1 ? "Last life. Lock in 🔒" : g.lives + " lives left. We move.", "#FFE14D", 1.1);
+  floatText(W/2-.5, W/2-3, g.lives === 1 ? "Last heart. Lock in 🔒" : g.lives + " hearts left. We move.", "#FFE14D", 1.1);
   g.floats[g.floats.length-1].max = 2;
   startCountdown();
 }
@@ -1161,7 +1192,7 @@ function updateHud(pulse){
   const hb = $("#hearts");
   const slots = Math.max(3, g.lives);
   hb.innerHTML = Array.from({length:slots}, (_,k) => HEART(k < g.lives, pulse && (k === g.lives || k === g.lives-1))).join("");
-  hb.setAttribute("aria-label", `${g.lives} ${g.lives===1?"life":"lives"} left`);
+  hb.setAttribute("aria-label", `${g.lives} ${g.lives===1?"heart":"hearts"} left`);
 }
 function syncToggles(){
   document.querySelectorAll(".tog").forEach(b => b.setAttribute("aria-checked", String(!!S[b.dataset.k])));
@@ -1176,7 +1207,7 @@ function starTotal(){ return Object.values(S.stars).reduce((a,b)=>a+b,0); }
 function showHome(){
   state = "home"; applyWorld(0); newGame(0, true);
   $("#starTotal").textContent = `${starTotal()} stars collected`;
-  screen("scrHome");
+  screen("scrHome"); renderLives();
 }
 const lbOn = () => !!(LEADERBOARD.url && LEADERBOARD.key);
 function lbHeaders(extra){ return Object.assign({apikey: LEADERBOARD.key, Authorization: "Bearer " + LEADERBOARD.key, "Content-Type": "application/json"}, extra||{}); }
@@ -1264,16 +1295,19 @@ async function setUser(u){
   authUser = u || null; renderAccount();
   if (authUser && authUser.id !== before) await pullMerge();
 }
-function progressSnapshot(){ return {stars:S.stars, best:S.best, skin:S.skin, plus:!!S.plus, lifeBank:S.lifeBank||0, earlyUntil:S.earlyUntil||0, fails:S.fails||0, paidIds:S.paidIds||[]}; }
+function progressSnapshot(){ return {stars:S.stars, best:S.best, skin:S.skin, plus:!!S.plus, lifeBank:S.lifeBank||0, earlyUntil:S.earlyUntil||0, fails:S.fails||0, paidIds:S.paidIds||[], lives:S.lives, livesAt:S.livesAt||0, livesUpd:S.livesUpd||0, unlimUntil:S.unlimUntil||0}; }
 function mergeProgress(a, b){
   const out = Object.assign({}, a), sa = a.stars||{}, sb2 = b.stars||{}, ba = a.best||{}, bb = b.best||{};
   out.stars = Object.assign({}, sa); for (const k in sb2) out.stars[k] = Math.max(out.stars[k]||0, sb2[k]||0);
   out.best = Object.assign({}, ba); for (const k in bb) out.best[k] = out.best[k] == null ? bb[k] : Math.min(out.best[k], bb[k]);
   out.plus = !!(a.plus || b.plus);
-  out.lifeBank = Math.max(a.lifeBank||0, b.lifeBank||0);
+  out.lifeBank = typeof out.lives === "number" ? 0 : Math.max(a.lifeBank||0, b.lifeBank||0);
   out.earlyUntil = (a.earlyUntil && b.earlyUntil) ? Math.min(a.earlyUntil, b.earlyUntil) : (a.earlyUntil || b.earlyUntil || 0);
   out.fails = Math.max(a.fails||0, b.fails||0);
   out.paidIds = [...new Set([...(a.paidIds||[]), ...(b.paidIds||[])])].slice(-200);
+  const nb = (b.livesUpd||0) > (a.livesUpd||0) && typeof b.lives === "number";
+  out.lives = nb ? b.lives : a.lives; out.livesAt = nb ? b.livesAt : a.livesAt; out.livesUpd = Math.max(a.livesUpd||0, b.livesUpd||0);
+  out.unlimUntil = Math.max(a.unlimUntil||0, b.unlimUntil||0);
   out.skin = a.skin || b.skin || "bubblegum";
   return out;
 }
@@ -1418,10 +1452,14 @@ async function handlePaymentReturn(){
         if (S.paidIds.includes(id)) return;
         S.paidIds.push(id);
         if (j.plus) S.plus = true;
-        S.lifeBank = (S.lifeBank||0) + (j.lives||0);
+        syncLives();
+        if (j.refill) { S.lives = Math.max(S.lives, maxLives()); S.livesAt = Date.now(); S.livesUpd = Date.now(); }
+        if (j.unlimMs) S.unlimUntil = Math.max(Date.now(), S.unlimUntil||0) + j.unlimMs;
+        if (j.lives) addLives(j.lives);
         const resume = S.resumeLevel; S.resumeLevel = null; save();
         SFX.coin(); confettiBurst();
-        toast(j.plus ? "Plus unlocked! ✨ Endless levels are yours." : `+${j.lives} ${j.lives > 1 ? "lives" : "life"} saved. Go get 'em!`, 5000);
+        toast(j.plus ? "Plus unlocked! ✨ Endless levels are yours." : j.unlimMs ? "Unlimited lives for 2 hours ∞ Go wild!" : j.refill ? "Lives refilled ♥ Go get 'em!" : `+${j.lives} ${j.lives > 1 ? "lives" : "life"} added. Go get 'em!`, 5000);
+        renderLives();
         if (resume != null && isUnlocked(resume)) openLevel(resume); else if (j.plus) showMap();
         return;
       }
@@ -1435,11 +1473,12 @@ function confettiBurst(){ if (g) for (let k=0;k<3;k++) confetti(4+Math.random()*
 function openLevel(i){
   if (!isUnlocked(i)) { showMap(); return; }
   if (isPaid(i)) { showPlus(i); return; }
+  if (!canPlay(i)) { showOutOfLives(i); return; }
   const L = getLevel(i), w = WORLDS[L.w];
   applyWorld(L.w); newGame(i, false); state = "intro"; shownSec = -1;
   $("#inWorld").textContent = L.endless ? `Endless · ${w.name} · Level ${i+1}` : `${w.name} · Level ${levelLabel(i)}`;
   $("#inName").textContent = L.name;
-  $("#inGoal").textContent = `Eat ${L.goal} fruits · 3 lives`;
+  $("#inGoal").textContent = `Eat ${L.goal} fruits · 3 hearts` + (costsLife(i) && !unlimited() ? " · costs 1 ♥ life if you lose" : "");
   $("#inTip").textContent = L.tip;
   const nw = $("#inNew"); nw.hidden = !L.fresh; nw.classList.toggle("bonus", !!L.bonus); if (L.fresh) nw.textContent = L.bonus ? "🍬 Bonus round" : "New! " + L.fresh;
   $("#inPar").textContent = `Finish in under ${fmt(parTime(L))} for 3 stars.` + (S.best[i] != null ? ` Your best: ${fmt(S.best[i])}.` : "");
@@ -1460,13 +1499,16 @@ let countTimer = 0;
 function skipCountdown(){ if (state !== "count") return; clearTimeout(countTimer); const el = $("#count"); el.textContent = "Go!"; SFX.go(); state = "play"; g.acc = 0; countTimer = setTimeout(()=>{ el.hidden = true; }, 350); }
 function pause(){ if (state !== "play") return; state = "paused"; $("#pzText").textContent = `You've munched ${g.eaten} of ${g.L.goal}. Touch-grass break? Your snake will wait.`; screen("scrPause"); }
 function resume(){ if (state !== "paused") return; state = "play"; screen(null); }
-function retry(i){ applyWorld(getLevel(i).w); newGame(i,false); shownSec = -1; startCountdown(); }
-let adTimer = 0;
-function showAd(){
+function retry(i){ if (!canPlay(i)) { showOutOfLives(i); return; } applyWorld(getLevel(i).w); newGame(i,false); shownSec = -1; startCountdown(); }
+// quitting a run that already lost a heart counts as a loss (no free retries)
+function quitRun(){ if (g && !g.demo && !g.charged && g.lives < 3 && costsLife(g.i) && !unlimited()) { g.charged = true; spendLife(); save(); } }
+let adTimer = 0, adMode = "continue", adFor = null;
+function showAd(mode, forLevel){
+  adMode = mode || "continue"; adFor = forLevel == null ? null : forLevel;
   state = "ad"; screen("scrAd");
   const total = 5; let left = total;
   $("#btnClaim").hidden = true; $("#adCancel").hidden = false;
-  $("#adText").textContent = "Your extra life is almost ready…";
+  $("#adText").textContent = adMode === "life" ? "Your free life is almost ready…" : "Your extra heart is almost ready…";
   const tick = () => {
     if (state !== "ad") return;
     $("#adCount").textContent = left;
@@ -1478,6 +1520,8 @@ function showAd(){
 }
 function claimLife(){
   clearTimeout(adTimer);
+  if (adMode === "life") { addLives(1); save(); SFX.power(); toast("+1 life ♥"); if (adFor != null) openLevel(adFor); else showMap(); return; }
+  if (g.charged) { g.charged = false; addLives(1); save(); }  // continuing the run: refund the life
   g.adUsed = true; g.lives = 1; updateHud();
   SFX.power(); screen(null);
   respawn();
@@ -1487,26 +1531,41 @@ function useBankLife(){
   g.lives = 1; updateHud(); SFX.power(); screen(null);
   respawn();
 }
-function showShop(){ state = "shop"; SFX.whoosh(); screen("scrShop"); }
-function buyPack(n, btn){
-  startCheckout("life" + n, btn, g && !g.demo ? g.i : null);
+let shopFor = null;
+function showOutOfLives(i){ shopFor = i == null ? null : i; state = "shop"; SFX.whoosh(); renderLives(); screen("scrShop"); }
+function showShop(){ showOutOfLives(g && !g.demo ? g.i : null); }
+function buyPack(item, btn){ startCheckout(item, btn, shopFor); }
+function renderLives(){
+  syncLives();
+  const un = unlimited(), mx = maxLives(), nx = nextLifeIn();
+  const hl = $("#homeLives");
+  if (hl) { hl.querySelector(".jn").textContent = un ? "∞" : `${S.lives}/${mx}`; hl.querySelector(".jt").textContent = un ? fmtLong(S.unlimUntil - Date.now()) : nx ? fmtLong(nx) : "Full"; }
+  const fl = $("#flLives");
+  if (fl) fl.innerHTML = un ? `<span class="jh">∞</span> Unlimited lives · ${fmtLong(S.unlimUntil - Date.now())} left`
+    : `<span class="jh">♥</span> ${S.lives} ${S.lives === 1 ? "life" : "lives"} left` + (nx ? ` · next in ${fmtLong(nx)}` : "");
+  if (state === "shop") {
+    const out = !un && S.lives <= 0;
+    $("#shTitle").textContent = un ? "Unlimited lives ∞" : out ? "Out of lives 💔" : `♥ ${S.lives}/${mx} lives`;
+    $("#shTimer").textContent = un ? `${fmtLong(S.unlimUntil - Date.now())} left` : nx ? `Next life in ${fmtLong(nx)}` : "Lives are full";
+    $("#shText").textContent = out ? "Lives refill on their own. Can't wait? Jump back in now." : "Losing a level from level 6 on costs 1 life. They refill over time.";
+    $("#shPlus").hidden = !!S.plus;
+  }
+  if (state === "fail") { const can = canPlay(g.i); $("#btnRetry").textContent = can ? "Run it back" : "Get more lives"; }
 }
+setInterval(() => { if (["home","map","fail","shop"].includes(state)) renderLives(); }, 1000);
 function showFail(){
   if (state === "dying") SFX.gameOver();
   state = "fail";
   $("#flTitle").textContent = pick(MSG.failTitle[g.cause] || MSG.failTitle.wall);
-  $("#flText").textContent = `No lives left. You munched ${g.eaten} of ${g.L.goal} fruits. It happens to the best of us.`;
-  const bank = S.lifeBank || 0;
-  $("#btnUseLife").hidden = bank <= 0;
-  $("#btnUseLife").textContent = `Use a saved life (${bank})`;
+  $("#flText").textContent = `Out of hearts. You munched ${g.eaten} of ${g.L.goal} fruits. It happens to the best of us.`;
+  if (!g.charged && costsLife(g.i) && !unlimited()) { g.charged = true; spendLife(); save(); }
   // Video offer: always for a player's first 3 game-overs, then about 6 in 10 attempts (decided once per attempt). Buy is always there.
   if (g.videoRoll === undefined) { S.fails = (S.fails||0) + 1; save(); g.videoRoll = S.fails <= 3 || Math.random() < .6; }
   const video = g.videoRoll && !g.adUsed;
   $("#btnAd").hidden = !video;
-  $("#lifeNote").textContent = g.adUsed ? "Video life already used on this try. You can still buy one."
-    : video ? "Watch a short video, or buy a life. Your progress is kept either way."
-    : "No free video this time. You can still buy a life and keep your progress.";
-  screen("scrFail");
+  $("#flBox").hidden = !video;
+  $("#lifeNote").textContent = costsLife(g.i) && !unlimited() ? "Watch a short video to keep this run (and your life)." : "Watch a short video to keep this run going.";
+  screen("scrFail"); renderLives();
 }
 function showWin(){
   state = "winscreen";
@@ -1623,16 +1682,17 @@ $("#plusLater").addEventListener("click", () => { SFX.click(); showMap(); });
 $("#btnGo").addEventListener("click", () => { SFX.click(); startCountdown(); });
 $("#inMap").addEventListener("click", () => { SFX.click(); showMap(); });
 $("#btnResume").addEventListener("click", () => { SFX.click(); resume(); });
-$("#pzRestart").addEventListener("click", () => { SFX.click(); retry(g.i); });
-$("#pzMap").addEventListener("click", () => { SFX.click(); showMap(); });
-$("#btnRetry").addEventListener("click", () => { SFX.click(); retry(g.i); });
-$("#btnAd").addEventListener("click", () => { SFX.click(); showAd(); });
-$("#btnUseLife").addEventListener("click", () => { SFX.click(); useBankLife(); });
-$("#btnBuy").addEventListener("click", () => { SFX.click(); showShop(); });
-$("#shopBack").addEventListener("click", () => { SFX.click(); showFail(); });
-document.querySelectorAll(".pack").forEach(b => b.addEventListener("click", () => buyPack(+b.dataset.n, b)));
+$("#pzRestart").addEventListener("click", () => { SFX.click(); quitRun(); retry(g.i); });
+$("#pzMap").addEventListener("click", () => { SFX.click(); quitRun(); showMap(); });
+$("#btnRetry").addEventListener("click", () => { SFX.click(); canPlay(g.i) ? retry(g.i) : showOutOfLives(g.i); });
+$("#btnAd").addEventListener("click", () => { SFX.click(); showAd("continue"); });
+$("#homeLives").addEventListener("click", () => { SFX.click(); showOutOfLives(null); });
+$("#pkAd").addEventListener("click", () => { SFX.click(); showAd("life", shopFor); });
+$("#shPlus").addEventListener("click", () => { SFX.click(); showPlus(shopFor); });
+$("#shopBack").addEventListener("click", () => { SFX.click(); showMap(); });
+document.querySelectorAll(".pack[data-item]").forEach(b => b.addEventListener("click", () => buyPack(b.dataset.item, b)));
 $("#btnClaim").addEventListener("click", () => { SFX.click(); claimLife(); });
-$("#adCancel").addEventListener("click", () => { SFX.click(); clearTimeout(adTimer); showFail(); });
+$("#adCancel").addEventListener("click", () => { SFX.click(); clearTimeout(adTimer); adMode === "life" ? showOutOfLives(adFor) : showFail(); });
 $("#flMap").addEventListener("click", () => { SFX.click(); showMap(); });
 $("#btnNext").addEventListener("click", () => { SFX.click(); g.plusPitch ? showPlus(g.i+1) : openLevel(g.i+1); });
 $("#wnReplay").addEventListener("click", () => { SFX.click(); retry(g.i); });
