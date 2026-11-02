@@ -7,13 +7,17 @@ const BASE = KEY.startsWith("dodo_live_") || process.env.DODO_MODE === "live"
   ? "https://live.dodopayments.com"
   : "https://test.dodopayments.com";
 
-// What players can buy. The product names must match the products in Dodo.
+// What players can buy. Names must match the products in Dodo.
+// Items with a price are created in Dodo automatically if they're missing.
 const ITEMS = {
-  plus:       { name: "Jelly Munch Plus",              lives: 5,  plus: true },
-  plus_early: { name: "Jelly Munch Plus (early-bird)", lives: 5,  plus: true },
-  life1:      { name: "1 life",                        lives: 1 },
-  life5:      { name: "5 lives",                       lives: 5 },
-  life10:     { name: "10 lives",                      lives: 10 },
+  plus:       { name: "Jelly Munch Plus",              lives: 5, plus: true, price: 14900, desc: "Endless levels forever, 7 max lives with faster refills, plus 5 bonus lives" },
+  plus_early: { name: "Jelly Munch Plus (early-bird)", lives: 5, plus: true, price: 9900,  desc: "Jelly Munch Plus at the 48-hour early-bird price" },
+  refill:     { name: "Refill all lives",              refill: true,          price: 1900,  desc: "Instantly refill all your Jelly Munch lives" },
+  unlim2h:    { name: "Unlimited lives (2 hours)",     unlimMs: 2*3600*1000,  price: 4900,  desc: "Play Jelly Munch with unlimited lives for 2 hours" },
+  // older packs, kept so earlier payments can still be verified
+  life1:      { name: "1 life",   lives: 1 },
+  life5:      { name: "5 lives",  lives: 5 },
+  life10:     { name: "10 lives", lives: 10 },
 };
 
 async function dodo(path, opts = {}) {
@@ -36,7 +40,15 @@ async function productIds() {
   const items = list.items || [];
   const map = {};
   for (const [k, v] of Object.entries(ITEMS)) {
-    const p = items.find(x => x.name === v.name && !x.is_archived);
+    let p = items.find(x => x.name === v.name && !x.is_archived);
+    if (!p && v.price) {
+      try {
+        p = await dodo("/products", { method: "POST", body: JSON.stringify({
+          name: v.name, description: v.desc || v.name, tax_category: "digital_products",
+          price: { type: "one_time_price", currency: "INR", price: v.price, discount_bps: 0, purchasing_power_parity: false, tax_inclusive: true },
+        }) });
+      } catch (e) { console.error("create product failed", v.name, e.message, e.data); }
+    }
     if (p) map[k] = p.product_id;
   }
   cache = map; cacheAt = Date.now();
