@@ -14,6 +14,7 @@ const ITEMS = {
   plus_early: { name: "Jelly Munch Plus (early-bird)", lives: 5, plus: true, price: 9900,  desc: "Jelly Munch Plus at the 48-hour early-bird price" },
   refill:     { name: "Refill all lives",              refill: true,          price: 1900,  desc: "Instantly refill all your Jelly Munch lives" },
   unlim2h:    { name: "Unlimited lives (2 hours)",     unlimMs: 2*3600*1000,  price: 4900,  desc: "Play Jelly Munch with unlimited lives for 2 hours" },
+  try1:       { name: "Extra try",                     cont: true,            price: 900,   desc: "One more try to finish your Jelly Munch level, keeping your fruits" },
   // older packs, kept so earlier payments can still be verified
   life1:      { name: "1 life",   lives: 1 },
   life5:      { name: "5 lives",  lives: 5 },

@@ -19,8 +19,8 @@ module.exports = async (req, res) => {
     }
     if (!ITEMS[item]) { res.status(200).json({ ok: false, status: "unknown_item" }); return; }
 
-    const { lives = 0, plus = false, refill = false, unlimMs = 0 } = ITEMS[item];
-    res.status(200).json({ ok: true, id, item, lives, plus, refill, unlimMs });
+    const { lives = 0, plus = false, refill = false, unlimMs = 0, cont = false } = ITEMS[item];
+    res.status(200).json({ ok: true, id, item, lives, plus, refill, unlimMs, cont });
   } catch (e) {
     console.error("verify failed", e.message, e.data);
     res.status(502).json({ ok: false, error: "Could not check payment" });
