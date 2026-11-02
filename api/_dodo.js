@@ -3,9 +3,10 @@
 // never in the game's public code.
 
 const KEY = process.env.DODO_API_KEY || "";
-const BASE = KEY.startsWith("dodo_live_") || process.env.DODO_MODE === "live"
-  ? "https://live.dodopayments.com"
-  : "https://test.dodopayments.com";
+// Test keys start with "dodo_test_"; any other key is treated as a live key.
+const BASE = KEY.startsWith("dodo_test_") && process.env.DODO_MODE !== "live"
+  ? "https://test.dodopayments.com"
+  : "https://live.dodopayments.com";
 
 // What players can buy. Names must match the products in Dodo.
 // Items with a price are created in Dodo automatically if they're missing.
