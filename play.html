@@ -435,7 +435,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
       <div class="eyebrow">Keep going?</div>
       <div class="lifeopts">
         <button class="btn alt" id="btnAd">Watch a video: +1 try</button>
-        <button class="btn gold" id="btnBuyTry">+1 try · ₹9</button>
+        <button class="btn gold" id="btnBuyTry" hidden>+1 try</button>
       </div>
       <div class="small" id="lifeNote"></div>
     </div>
@@ -469,8 +469,8 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     <p id="shText">Lives refill on their own. Can't wait? Jump back in now.</p>
     <div class="packs">
       <button class="pack" id="pkAd"><span class="hs">▶</span><span class="nm">Watch a video<small>Get 1 life for free</small></span><span class="pr">Free</span></button>
-      <button class="pack" data-item="refill"><span class="hs">♥</span><span class="nm">Refill all lives<small>Back to full, right now</small></span><span class="pr">₹19</span></button>
-      <button class="pack" data-item="unlim2h"><span class="tag">Best value</span><span class="hs">∞</span><span class="nm">Unlimited lives<small>Play as much as you want for 2 hours</small></span><span class="pr">₹49</span></button>
+      <button class="pack" data-item="refill"><span class="hs">♥</span><span class="nm">Refill all lives<small>Back to full, right now</small></span><span class="pr">₹49</span></button>
+      <button class="pack" data-item="unlim2h"><span class="tag">Best value</span><span class="hs">∞</span><span class="nm">Unlimited lives<small>Play as much as you want for 2 hours</small></span><span class="pr">₹79</span></button>
     </div>
     <button class="link" id="shPlus">Get Plus: 7 max lives + faster refills ✨</button>
     <p class="small">Secure checkout by Dodo Payments. Sign in first to keep your lives on every device.</p>
@@ -1637,11 +1637,11 @@ function showFail(){
   $("#flTitle").textContent = pick(MSG.failTitle[g.cause] || MSG.failTitle.wall);
   $("#flText").textContent = `Out of hearts. You munched ${g.eaten} of ${g.L.goal} fruits. It happens to the best of us.`;
   if (!g.charged && costsLife(g.i) && !unlimited()) { g.charged = true; spendLife(); save(); }
-  // Video offer: always for a player's first 3 game-overs, then about 6 in 10 attempts (decided once per attempt). Buy is always there.
+  // Video offer: always for a player's first 3 game-overs, then about 6 in 10 attempts (decided once per attempt). No paid +1 try: Dodo needs ≥ ~₹45 per payment.
   if (g.videoRoll === undefined) { S.fails = (S.fails||0) + 1; save(); g.videoRoll = S.fails <= 2 || Math.random() < 1/3; }
   const video = g.videoRoll && !g.adUsed;
   $("#btnAd").hidden = !video;
-  $("#flBox").hidden = false;
+  $("#flBox").hidden = !video;
   $("#btnBuyTry").removeAttribute("aria-busy");
   const keep = g.eaten > 0 ? `Keep your ${g.eaten} ${g.eaten === 1 ? "fruit" : "fruits"}` : "Pick up where you left off";
   $("#lifeNote").textContent = keep + (costsLife(g.i) && !unlimited() ? " and no life is used." : ".");
