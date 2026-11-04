@@ -16,8 +16,8 @@ module.exports = async (req, res) => {
     const origin = siteOrigin(req);
     const payload = {
       product_cart: [{ product_id: ids[item], quantity: 1 }],
-      return_url: origin + "/?paid=" + item,
-      cancel_url: origin + "/?paid=cancel",
+      return_url: origin + "/play/?paid=" + item,
+      cancel_url: origin + "/play/?paid=cancel",
       metadata: { item },
     };
     const email = String(body.email || "").trim();
