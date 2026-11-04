@@ -632,6 +632,8 @@ const FCOL = {berry:"#FF4D6D", orange:"#FF9F1C", grape:"#9B5DE5", cherry:"#E5383
    google: set to true only after turning on the Google provider in Supabase.
    Leave url/key empty and both features show a friendly "not switched on yet" message. */
 const SUPABASE = { url: "https://qyewgjctgsdsdaapwdak.supabase.co", key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5ZXdnamN0Z3Nkc2RhYXB3ZGFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NzY1ODYsImV4cCI6MjEwNzQ1MjU4Nn0.YPXK1OXFFqAa8KCz0PPR1wfyQeTpwMBSYbvHAlWk3Mo", google: false };
+// Show "Continue with Google" automatically once Google is switched on in Supabase.
+fetch(SUPABASE.url + "/auth/v1/settings", {headers:{apikey: SUPABASE.key}}).then(r => r.json()).then(j => { SUPABASE.google = !!(j.external && j.external.google); const b = document.getElementById("acGoogle"); if (b && !authUser) { b.hidden = !SUPABASE.google; document.getElementById("acOr").hidden = !SUPABASE.google; } }).catch(() => {});
 const LEADERBOARD = SUPABASE;
 const SB_CDN = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js";
 let sb = null, authUser = null, syncTimer = 0;
@@ -1742,7 +1744,7 @@ $("#acForm").addEventListener("submit", async e => {
   $("#acSend").disabled = true; $("#acMsg").textContent = "Sending…";
   const { error } = await sb.auth.signInWithOtp({email, options:{emailRedirectTo: redirectUrl()}});
   $("#acSend").disabled = false;
-  $("#acMsg").textContent = error ? "Couldn't send the link right now. Wait a minute and try again." : `Link sent to ${email}. Open it on this device to sign in. Check spam if it's not there.`;
+  $("#acMsg").textContent = error ? (error.status === 429 ? (SUPABASE.google ? "Too many sign-in emails right now. Use Continue with Google, or try again in a bit." : "Too many sign-in emails right now. Try again in a bit.") : "Couldn't send the link right now. Wait a minute and try again.") : `Link sent to ${email}. Open it on this device to sign in. Check spam if it's not there.`;
 });
 $("#acOut").addEventListener("click", async () => { SFX.click(); try { if (sb) await sb.auth.signOut(); } catch (e) {} authUser = null; renderAccount(); });
 $("#lbBack").addEventListener("click", () => { SFX.click(); showHome(); });
