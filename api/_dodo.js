@@ -13,9 +13,12 @@ const BASE = KEY.startsWith("dodo_test_") && process.env.DODO_MODE !== "live"
 const ITEMS = {
   plus:       { name: "Jelly Munch Plus",              lives: 5, plus: true, price: 14900, desc: "Endless levels forever, 7 max lives with faster refills, plus 5 bonus lives" },
   plus_early: { name: "Jelly Munch Plus (early-bird)", lives: 5, plus: true, price: 9900,  desc: "Jelly Munch Plus at the 48-hour early-bird price" },
-  refill:     { name: "Refill all lives",              refill: true,          price: 1900,  desc: "Instantly refill all your Jelly Munch lives" },
-  unlim2h:    { name: "Unlimited lives (2 hours)",     unlimMs: 2*3600*1000,  price: 4900,  desc: "Play Jelly Munch with unlimited lives for 2 hours" },
-  try1:       { name: "Extra try",                     cont: true,            price: 900,   desc: "One more try to finish your Jelly Munch level, keeping your fruits" },
+  refill:     { name: "Lives refill (full)",           refill: true,          price: 4900,  desc: "Instantly refill all your Jelly Munch lives" },
+  unlim2h:    { name: "Unlimited lives 2h",            unlimMs: 2*3600*1000,  price: 7900,  desc: "Play Jelly Munch with unlimited lives for 2 hours" },
+  // Dodo rejects payments under 0.50 USD, so these old low prices are kept only to verify past payments.
+  refill_old: { name: "Refill all lives", refill: true },
+  unlim_old:  { name: "Unlimited lives (2 hours)", unlimMs: 2*3600*1000 },
+  try1:       { name: "Extra try",                     cont: true,                           desc: "One more try to finish your Jelly Munch level, keeping your fruits" },
   // older packs, kept so earlier payments can still be verified
   life1:      { name: "1 life",   lives: 1 },
   life5:      { name: "5 lives",  lives: 5 },
