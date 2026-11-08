@@ -16,6 +16,14 @@
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9445442957849545"
      crossorigin="anonymous"></script>
 <style>body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}.legal a{color:inherit;opacity:.75;font-size:13px}
+.dwpop{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:rgba(43,27,77,.55);padding:16px}
+.dwpop[hidden]{display:none}
+.dwcard{max-width:360px;width:100%;text-align:center;background:linear-gradient(160deg,#4B1D6B,#2B1B4D 60%,#5A1A3A);color:#FFF4D6;border:4px solid var(--ink);border-radius:28px;box-shadow:0 8px 0 var(--ink);padding:24px 20px 22px}
+.dwcard .dwi{font-size:54px;line-height:1;animation:gshake 1.6s ease-in-out infinite}
+.dwcard h2{font:400 34px "Lilita One",var(--body);color:#FFD23F;margin:10px 0 6px}
+.dwcard p{margin:0 0 16px;font-weight:700}
+.dwtag{font-weight:800;font-size:15px;color:#B5179E;margin:-2px 0 6px}
+.dwtag[hidden]{display:none}
 #toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:50;max-width:min(92vw,420px);background:var(--cream);color:var(--ink);border:3px solid var(--ink);border-radius:18px;box-shadow:0 5px 0 var(--ink);padding:10px 16px;font-weight:700;text-align:center}
 .pack[aria-busy="true"],.btn[aria-busy="true"]{opacity:.6;pointer-events:none}
 </style>
@@ -301,6 +309,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
 </div>
 
 <div id="toast" role="status" aria-live="polite" hidden></div>
+<div class="dwpop" id="dwPop" hidden><div class="dwcard" role="dialog" aria-labelledby="dwH"><div class="dwi">🪔</div><h2 id="dwH">Happy Diwali!</h2><p>Here are <b>5 free lives</b> from us. This week the jelly eats laddoos, jalebis and kaju katli instead of fruit 🍬</p><button class="btn" id="dwOk">Let's munch!</button></div></div>
 
 <!-- Home -->
 <section class="screen home" id="scrHome">
@@ -318,6 +327,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     </button>
     <h1 class="title"><span class="p">Jelly</span><span class="y">Munch</span></h1>
     <div class="lead">Munch your stress away.</div>
+    <div class="dwtag" id="dwTag" hidden>🪔 Happy Diwali! Sweets instead of fruit this week</div>
     <p>A quick, juicy break: eat the fruit, grow your jelly snake, dodge the wall and your own tail.</p>
     <div class="row chiprow"><span class="chip"><span class="s">★</span><span id="starTotal">0 stars collected</span></span><button class="chip livechip" id="homeLives" aria-label="Lives"><span class="jh">♥</span><span class="jn">5</span><span class="jt"></span></button></div>
     <button class="giftbar" id="btnGift" hidden><span class="gi">🎁</span><span id="giftText">Daily gift ready! Tap to claim</span></button>
@@ -517,6 +527,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     <span class="chip lbchip" id="wnRank" hidden></span>
     <button class="chip savechip" id="wnSave" hidden>💾 Sign in to keep your progress on every device →</button>
     <p class="hint" id="wnHint"></p>
+    <button class="btn alt" id="wnWish" hidden>Send Diwali wishes 🪔</button>
     <button class="btn" id="btnNext">Next level</button>
     <div class="row"><button class="link" id="wnReplay">Replay</button><button class="link" id="wnMap">Level map</button></div>
   </div>
@@ -668,6 +679,9 @@ syncLives();
 const save = () => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch(e) {} if (authUser) cloudSave(); };
 const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const calm = () => S.chill || RM;
+// Diwali week: on until the end of 11 Nov 2026 (IST). Add ?diwali=1 to preview it any time.
+const DIWALI = /[?&]diwali=1/.test(location.search) || Date.now() < Date.UTC(2026, 10, 11, 18, 30);
+const SWEET_OF = {berry:"laddoo", orange:"jalebi", grape:"katli", cherry:"jamun", melon:"diya"};
 
 /* ---------- sound (Web Audio, no files) ---------- */
 let ac = null, master = null;
@@ -913,6 +927,7 @@ function win(){
   g.newSkins = SKINS.filter(k => k.need > before && k.need <= after);
   SFX.win(g.newBest && prevBest != null);
   for (let k=0;k<(calm()?2:5);k++) confetti(4+Math.random()*12, 3+Math.random()*10, 14);
+  if (DIWALI && !calm()) for (let k=0;k<5;k++) setTimeout(() => { if (g && state === "won") { burst(3+Math.random()*14, 2+Math.random()*9, ["#FFD23F","#FF5FA2","#FF8C1A","#FFFFFF","#7CF5D0"][k], 34); tone(300+k*90, .25, {type:"triangle", vol:.08, slide:900}); } }, 120 + k*170);
   setTimeout(() => { if (state === "won") showWin(); }, 1000);
 }
 const parTime = L => L.goal * 2.4 * (S.chill ? 1.35 : 1);
@@ -973,6 +988,7 @@ function shine(x,y,r){ ctx.fillStyle="rgba(255,255,255,.75)"; ell(x,y,r*.2,r*.11
 function drawFruit(type,cx,cy,r){
   ctx.fillStyle = "rgba(43,27,77,.22)"; ell(cx, cy+r*.92, r*.7, r*.2); ctx.fill();
   ctx.lineWidth = r*.12; ctx.strokeStyle = INK; ctx.lineJoin = "round";
+  if (DIWALI && SWEET_OF[type]) { drawSweet(SWEET_OF[type], cx, cy, r); return; }
   if (type === "berry") {
     ctx.beginPath(); ctx.moveTo(cx,cy+r);
     ctx.bezierCurveTo(cx-r*1.2,cy+r*.15,cx-r*.95,cy-r*.85,cx,cy-r*.6);
@@ -1004,6 +1020,38 @@ function drawFruit(type,cx,cy,r){
     ctx.save(); ctx.shadowColor = "#FFE14D"; ctx.shadowBlur = r*1.4;
     ctx.fillStyle = radial(cx,cy,r,"#FFFBD1","#FFB800"); circle(cx,cy,r*.9); ctx.fill(); ctx.restore(); ctx.stroke();
     ctx.fillStyle = "#FFFFFF"; star(cx,cy+r*.05,r*.45,r*.2); ctx.fill(); ctx.lineWidth = r*.08; ctx.stroke();
+  }
+}
+function drawSweet(kind,cx,cy,r){
+  if (kind === "laddoo") {
+    ctx.fillStyle = radial(cx,cy,r*.9,"#FFE08A","#F29A1F"); circle(cx,cy,r*.88); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "rgba(170,90,10,.55)"; [[-.4,-.2],[.2,-.45],[.45,.1],[-.1,.35],[-.5,.3],[.15,.05],[.35,.5],[-.25,-.5]].forEach(([a,b])=>{ circle(cx+a*r,cy+b*r,r*.07); ctx.fill(); });
+    ctx.fillStyle = "#3BB273"; circle(cx+r*.1,cy-r*.15,r*.08); ctx.fill();
+    shine(cx-r*.35,cy-r*.35,r);
+  } else if (kind === "jalebi") {
+    const path = () => { ctx.beginPath(); for (let t=0;t<=Math.PI*5;t+=.15){ const rad = r*.08 + t*r*.052; ctx.lineTo(cx+Math.cos(t)*rad, cy+Math.sin(t)*rad); } };
+    ctx.lineCap = "round"; path(); ctx.lineWidth = r*.36; ctx.strokeStyle = INK; ctx.stroke();
+    path(); ctx.lineWidth = r*.22; ctx.strokeStyle = "#FF8C1A"; ctx.stroke();
+    path(); ctx.lineWidth = r*.07; ctx.strokeStyle = "rgba(255,230,150,.9)"; ctx.stroke();
+    ctx.lineWidth = r*.12; ctx.strokeStyle = INK;
+  } else if (kind === "katli") {
+    ctx.beginPath(); ctx.moveTo(cx,cy-r*.85); ctx.lineTo(cx+r*.95,cy); ctx.lineTo(cx,cy+r*.85); ctx.lineTo(cx-r*.95,cy); ctx.closePath();
+    const gr = ctx.createLinearGradient(cx-r,cy-r,cx+r,cy+r); gr.addColorStop(0,"#FFFFFF"); gr.addColorStop(.45,"#E9E4F2"); gr.addColorStop(1,"#C9C2D9");
+    ctx.fillStyle = gr; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,.9)"; ell(cx-r*.3,cy-r*.2,r*.22,r*.07,-.75); ctx.fill();
+    ctx.fillStyle = "#F4D9A6"; ell(cx+r*.2,cy+r*.25,r*.12,r*.05,-.75); ctx.fill();
+  } else if (kind === "jamun") {
+    ctx.fillStyle = "rgba(160,70,20,.35)"; ell(cx,cy+r*.55,r*.85,r*.28); ctx.fill();
+    ctx.fillStyle = radial(cx,cy,r*.85,"#D77A3A","#5E2312"); circle(cx,cy,r*.82); ctx.fill(); ctx.stroke();
+    shine(cx-r*.3,cy-r*.32,r*1.2); ctx.fillStyle = "rgba(255,255,255,.5)"; circle(cx+r*.3,cy-r*.1,r*.06); ctx.fill();
+  } else if (kind === "diya") {
+    const fl = 1 + .12*Math.sin((g ? g.clock : 0)*14 + cx);
+    ctx.save(); ctx.shadowColor = "#FFB703"; ctx.shadowBlur = r*1.3;
+    ctx.beginPath(); ctx.moveTo(cx,cy-r*1.05*fl); ctx.quadraticCurveTo(cx+r*.45,cy-r*.4,cx,cy-r*.15); ctx.quadraticCurveTo(cx-r*.45,cy-r*.4,cx,cy-r*1.05*fl); ctx.closePath();
+    ctx.fillStyle = radial(cx,cy-r*.5,r*.5,"#FFF6B0","#FF9F1C"); ctx.fill(); ctx.restore();
+    ctx.beginPath(); ctx.moveTo(cx-r*.95,cy-r*.12); ctx.quadraticCurveTo(cx,cy+r*1.05,cx+r*.95,cy-r*.12); ctx.closePath();
+    ctx.fillStyle = radial(cx,cy+r*.2,r*.9,"#F7A26B","#B9471A"); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#FFD23F"; [[-.45,.12],[0,.3],[.45,.12]].forEach(([a,b])=>{ circle(cx+a*r,cy+b*r,r*.07); ctx.fill(); });
   }
 }
 function star(cx,cy,R,r){ ctx.beginPath(); for (let k=0;k<10;k++){ const a=-Math.PI/2+k*Math.PI/5, rad=k%2?r:R; ctx.lineTo(cx+Math.cos(a)*rad, cy+Math.sin(a)*rad); } ctx.closePath(); }
@@ -1132,6 +1180,8 @@ function render(dt){
   ctx.fillStyle = Wd.tA; ctx.fillRect(-12,-12,bs+24,bs+24);
   ctx.fillStyle = Wd.tB;
   for (let y=0;y<W;y++) for (let x=0;x<W;x++) if ((x+y)%2) ctx.fillRect(x*c,y*c,c,c);
+  if (DIWALI) { const LC = ["#FFD23F","#FF5FA2","#FF8C1A","#7CF5D0"]; ctx.strokeStyle = "rgba(43,27,77,.35)"; ctx.lineWidth = 1.5; ctx.beginPath(); for (let k=0;k<=W;k++) ctx.lineTo(k*c, c*.18 + Math.sin(k*1.3)*c*.08); ctx.stroke();
+    for (let k=0;k<W;k++) { const on = .55 + .45*Math.sin(g.clock*3 + k*1.7); ctx.globalAlpha = on; ctx.fillStyle = LC[k%4]; circle((k+.5)*c, c*.22 + Math.sin((k+.5)*1.3)*c*.08, c*.09); ctx.fill(); } ctx.globalAlpha = 1; }
   for (const [x,y] of g.wallList) drawBlock(x,y,Wd.wall);
   if (g.portals) g.portals.forEach((p,i)=>drawPortal(p[0],p[1],Wd.portal,i));
   if (g.fruit) drawFruitObj(g.fruit);
@@ -1261,7 +1311,7 @@ function claimGift(){
   toast(streak > 1 ? `+${n} ${n>1?"lives":"life"}! ${streak}-day streak 🔥 Come back tomorrow` : `+1 life! Come back tomorrow for more 🎁`, 4000);
   sayMascot(["Yay gifts!","Ooh shiny 🎁","Streak gang 🔥"][Math.random()*3|0]);
 }
-const MASCOT_LINES = ["Feed me 🍓","Ek aur round?","Boop!","I'm squishy ok","Hungry hungry jelly","Don't hit the wall 😬","Wanna go again?"];
+const MASCOT_LINES = DIWALI ? ["Happy Diwali! 🪔","Laddoo please 🍬","Ek aur jalebi?","Boop!","Shubh Deepavali ✨","Pataakhe! 🎆","Mithai mode on"] : ["Feed me 🍓","Ek aur round?","Boop!","I'm squishy ok","Hungry hungry jelly","Don't hit the wall 😬","Wanna go again?"];
 let sayTimer = 0;
 function sayMascot(t){ const b = $("#mascotSay"); if (!b) return; b.textContent = t; b.classList.add("on"); clearTimeout(sayTimer); sayTimer = setTimeout(() => b.classList.remove("on"), 2200); }
 function pokeMascot(){ const m = $("#mascot"); m.classList.remove("squish"); void m.offsetWidth; m.classList.add("squish"); audioOn(); SFX.click(); sayMascot(MASCOT_LINES[Math.random()*MASCOT_LINES.length|0]); }
@@ -1271,6 +1321,11 @@ function showHome(){
   state = "home"; applyWorld(0); newGame(0, true);
   $("#starTotal").textContent = `${starTotal()} stars collected`;
   screen("scrHome"); renderLives(); renderGift();
+  if (DIWALI) {
+    $("#dwTag").hidden = false; $("#mascotSay").textContent = "Happy Diwali! 🪔";
+    const fx = document.querySelectorAll(".homefx span"); ["🪔","✨","🍬","🎆","🪔","🍬","✨","🎇"].forEach((e,i) => { if (fx[i]) fx[i].textContent = e; });
+    if (!S.dw26) { S.dw26 = 1; addLives(5); save(); renderLives(); setTimeout(() => { if (state === "home") { $("#dwPop").hidden = false; SFX.coin(); } }, 700); }
+  }
   if (giftReady()) setTimeout(() => state === "home" && sayMascot("A gift for you 🎁"), 900);
 }
 const lbOn = () => !!(LEADERBOARD.url && LEADERBOARD.key);
@@ -1665,6 +1720,7 @@ function showWin(){
   if (g.newSkins.length) rw.textContent = `New skin unlocked: ${g.newSkins.map(k=>k.name).join(", ")}! Pick it from Jelly skins on Home.`;
   $("#wnHint").textContent = g.stars < 3 ? `Finish in under ${fmt(parTime(g.L))} for 3 stars.` : "Three stars. You understood the assignment.";
   $("#btnNext").textContent = "Next level";
+  $("#wnWish").hidden = !DIWALI;
   if (g.L.bonus) { $("#wnTitle").textContent = "Bonus cleared! Back to the challenge 💪"; $("#wnHint").textContent = "Sweet break. The next level turns the heat back up."; }
   g.plusPitch = g.i === FREE_LEVELS-1 && !S.plus;
   if (g.plusPitch) {
@@ -1731,6 +1787,40 @@ $("#btnLb").addEventListener("click", () => { SFX.click(); showLb(); });
 $("#btnAccount").addEventListener("click", () => { SFX.click(); showAccount(); });
 $("#wnSave").addEventListener("click", () => { SFX.click(); showAccount(); });
 $("#acBack").addEventListener("click", () => { SFX.click(); showHome(); });
+$("#dwOk").addEventListener("click", () => { SFX.click(); $("#dwPop").hidden = true; });
+$("#dwPop").addEventListener("click", e => { if (e.target.id === "dwPop") $("#dwPop").hidden = true; });
+function diwaliCard(){
+  const S2 = 1080, cv = document.createElement("canvas"); cv.width = cv.height = S2; const x = cv.getContext("2d");
+  const bg = x.createLinearGradient(0,0,S2,S2); bg.addColorStop(0,"#5B1E7A"); bg.addColorStop(.55,"#2B1B4D"); bg.addColorStop(1,"#7A1E45"); x.fillStyle = bg; x.fillRect(0,0,S2,S2);
+  for (let k=0;k<70;k++) { x.globalAlpha = .25 + Math.random()*.6; x.fillStyle = ["#FFD23F","#FF5FA2","#FFFFFF","#7CF5D0"][k%4]; x.beginPath(); x.arc(Math.random()*S2, Math.random()*S2*.55, 2+Math.random()*5, 0, 7); x.fill(); }
+  x.globalAlpha = 1;
+  [[200,190,"#FFD23F"],[860,150,"#FF5FA2"],[540,90,"#7CF5D0"]].forEach(([fx,fy,col]) => { x.strokeStyle = col; x.lineWidth = 6; x.lineCap = "round"; for (let a=0;a<16;a++){ const t = a/16*6.283; x.beginPath(); x.moveTo(fx+Math.cos(t)*30, fy+Math.sin(t)*30); x.lineTo(fx+Math.cos(t)*95, fy+Math.sin(t)*95); x.stroke(); } });
+  x.textAlign = "center"; x.lineJoin = "round";
+  const big = (t, y, size, fill) => { x.font = `400 ${size}px "Lilita One","Baloo 2",sans-serif`; x.lineWidth = size*.16; x.strokeStyle = "#2B1B4D"; x.strokeText(t, S2/2, y); x.fillStyle = fill; x.fillText(t, S2/2, y); };
+  big("Happy Diwali!", 400, 150, "#FFD23F");
+  x.font = '800 46px "Baloo 2",sans-serif'; x.fillStyle = "#FFF4D6"; x.fillText("Sweets with zero calories 😌", S2/2, 480);
+  // the jelly snake eating a laddoo
+  const pts = [[260,690],[320,700],[380,690],[440,670],[500,655],[560,655],[620,670]];
+  pts.slice().reverse().forEach(([px,py],i) => { const rr = 34 + i*2; x.fillStyle = "#2B1B4D"; x.beginPath(); x.arc(px,py,rr+7,0,7); x.fill(); const gr = x.createRadialGradient(px-12,py-14,4,px,py,rr); gr.addColorStop(0,"#FFC4DE"); gr.addColorStop(.6,"#FF6AA8"); gr.addColorStop(1,"#E23D86"); x.fillStyle = gr; x.beginPath(); x.arc(px,py,rr,0,7); x.fill(); });
+  [[608,652],[640,652]].forEach(([ex,ey]) => { x.fillStyle = "#fff"; x.beginPath(); x.ellipse(ex,ey,13,15,0,0,7); x.fill(); x.lineWidth = 5; x.strokeStyle = "#2B1B4D"; x.stroke(); x.fillStyle = "#2B1B4D"; x.beginPath(); x.arc(ex+4,ey+3,6,0,7); x.fill(); });
+  x.font = '120px "Apple Color Emoji","Segoe UI Emoji",sans-serif'; x.fillText("🍬", 780, 715); x.font = '90px "Apple Color Emoji","Segoe UI Emoji",sans-serif'; x.fillText("🪔", 120, 720); x.fillText("🪔", 960, 600);
+  const lvl = g ? (g.L.endless ? "level " + (g.i+1) : "level " + levelLabel(g.i)) : "";
+  x.font = '800 42px "Baloo 2",sans-serif'; x.fillStyle = "#FFF4D6"; x.fillText(lvl ? `I just cleared ${lvl} of Jelly Munch ${"★".repeat(g.stars||0)}` : "Come munch with me", S2/2, 860);
+  x.fillStyle = "#FFD23F"; x.beginPath(); x.roundRect(S2/2-250, 915, 500, 92, 46); x.fill(); x.lineWidth = 7; x.strokeStyle = "#2B1B4D"; x.stroke();
+  x.fillStyle = "#2B1B4D"; x.font = '800 46px "Baloo 2",sans-serif'; x.fillText("▶ jellymunch.in", S2/2, 977);
+  return new Promise(res => cv.toBlob(res, "image/png"));
+}
+$("#wnWish").addEventListener("click", async e => {
+  SFX.click(); const b = e.currentTarget; b.disabled = true;
+  const text = "Happy Diwali! 🪔 This year I'm eating laddoos and jalebis with zero calories 😌 Play Jelly Munch free: https://jelly-munch-site.vercel.app";
+  try {
+    const blob = await diwaliCard(), file = new File([blob], "jelly-munch-diwali.png", {type:"image/png"});
+    if (navigator.canShare && navigator.canShare({files:[file]})) await navigator.share({files:[file], text});
+    else if (navigator.share) await navigator.share({text});
+    else { window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank"); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "jelly-munch-diwali.png"; a.click(); }
+  } catch (err) { if (err && err.name !== "AbortError") window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank"); }
+  b.disabled = false;
+});
 $("#acGoogle").addEventListener("click", async () => {
   SFX.click(); if (!sb) { $("#acMsg").textContent = "Couldn't reach the sign-in service. Check your connection and try again."; return; }
   const { error } = await sb.auth.signInWithOAuth({provider:"google", options:{redirectTo: redirectUrl()}});
