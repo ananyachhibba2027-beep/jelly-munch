@@ -24,7 +24,13 @@
 .dwcard p{margin:0 0 16px;font-weight:700}
 .dwtag{font-weight:800;font-size:15px;color:#B5179E;margin:-2px 0 6px}
 .dwtag[hidden]{display:none}
-.dwrow{display:inline-block;margin-top:10px;font-size:28px;letter-spacing:4px}
+.dwrow{display:inline-block;margin:6px 0 2px;font-size:28px;letter-spacing:4px}
+.dwprev{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.08);border:2px dashed rgba(255,210,63,.7);border-radius:18px;padding:8px 12px;margin:12px 0 4px;text-align:left}
+.dwprev svg{width:72px;flex:none;filter:drop-shadow(0 0 10px rgba(255,190,40,.8));animation:gshake 2.4s ease-in-out infinite}
+.dwprev b{color:#FFD23F;font:400 20px "Lilita One",var(--body);display:block}
+.dwprev small{font-size:13px;opacity:.85}
+.dwhow{font-size:14px;font-weight:600;opacity:.9;margin:8px 0 0}
+.dwtag{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
 html.diwali #room{background:radial-gradient(circle at 1px 1px, rgba(255,210,63,.55) 2px, transparent 2.6px) 0 0/30px 30px, linear-gradient(160deg,var(--bg1),var(--bg2))}
 html.diwali #room::after{content:"🪔  ✨  🎆  🪔  ✨  🎇  🪔  ✨  🎆  🪔";position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:22px;letter-spacing:6px;opacity:.55;white-space:nowrap;overflow:hidden}
 html.diwali #frame{box-shadow:0 8px 0 var(--ink),0 0 34px rgba(255,183,3,.55),0 26px 40px rgba(43,27,77,.28)}
@@ -1339,14 +1345,14 @@ function showHome(){
     const fx = document.querySelectorAll(".homefx span"); ["🪔","✨","🍬","🎆","🪔","🍬","✨","🎇"].forEach((e,i) => { if (fx[i]) fx[i].textContent = e; });
     const today = new Date(Date.now() + 5.5*3600e3).toISOString().slice(0,10), days = S.dwDays || (S.dwDays = []);
     const first = !S.dw26, newDay = !days.includes(today);
-    let msg = "";
+    let head = "";
     if (newDay) days.push(today);
-    const n = Math.min(DIYA_GOAL, days.length), row = "🪔".repeat(n) + "⚪".repeat(DIYA_GOAL - n);
-    if (first) { S.dw26 = 1; addLives(5); msg = `Here are <b>5 free lives</b> 🎁 Play on 3 days till 11 Nov to light all the diyas and unlock the <b>Golden Diya</b> jelly ✨<br><span class="dwrow">${row}</span>`; }
-    else if (newDay) { addLives(2); msg = n >= DIYA_GOAL ? `All ${DIYA_GOAL} diyas lit! <b>Golden Diya jelly unlocked</b> ✨ Pick it in Jelly skins. +2 lives too.<br><span class="dwrow">${row}</span>` : `Diya ${n} lit! <b>+2 lives</b> 🎁 Come back tomorrow to light the next one.<br><span class="dwrow">${row}</span>`; }
+    const n = Math.min(DIYA_GOAL, days.length);
+    if (first) { S.dw26 = 1; addLives(5); head = `<b>5 free lives</b> for you 🎁`; }
+    else if (newDay) { addLives(2); head = n >= DIYA_GOAL ? `Diya ${n} lit! <b>+2 lives</b> 🎁` : `Diya ${n} lit! <b>+2 lives</b> 🎁`; }
     if (n >= DIYA_GOAL) S.diyaSkin = 1;
-    $("#dwTag").innerHTML = S.diyaSkin ? "🪔 Golden Diya jelly unlocked ✨" : `🪔 Diwali diyas: ${row} · come back tomorrow for the next one`;
-    if (msg) { save(); renderLives(); $("#dwMsg").innerHTML = msg; setTimeout(() => { if (state === "home") { $("#dwPop").hidden = false; SFX.coin(); } }, 700); }
+    $("#dwTag").innerHTML = S.diyaSkin ? "🪔 Golden Diya jelly unlocked ✨ Wear it from Jelly skins" : `🪔 Diwali diyas ${"🪔".repeat(n)}${"⚪".repeat(DIYA_GOAL-n)} · what's this?`;
+    if (head) { save(); renderLives(); setTimeout(() => { if (state === "home") showDiyas(head); }, 700); }
   }
   if (giftReady()) setTimeout(() => state === "home" && sayMascot("A gift for you 🎁"), 900);
 }
@@ -1815,6 +1821,18 @@ $("#btnLb").addEventListener("click", () => { SFX.click(); showLb(); });
 $("#btnAccount").addEventListener("click", () => { SFX.click(); showAccount(); });
 $("#wnSave").addEventListener("click", () => { SFX.click(); showAccount(); });
 $("#acBack").addEventListener("click", () => { SFX.click(); showHome(); });
+const GOLD_JELLY = `<svg viewBox="0 0 120 100" aria-hidden="true"><defs><radialGradient id="gj" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#FFF6C2"/><stop offset=".55" stop-color="#FFC93C"/><stop offset="1" stop-color="#E08A00"/></radialGradient></defs><ellipse cx="60" cy="58" rx="50" ry="40" fill="url(#gj)" stroke="#2B1B4D" stroke-width="6"/><ellipse cx="42" cy="34" rx="14" ry="7" fill="#fff" opacity=".7"/><ellipse cx="44" cy="54" rx="10" ry="12" fill="#fff" stroke="#2B1B4D" stroke-width="4"/><ellipse cx="76" cy="54" rx="10" ry="12" fill="#fff" stroke="#2B1B4D" stroke-width="4"/><circle cx="46" cy="57" r="5" fill="#2B1B4D"/><circle cx="78" cy="57" r="5" fill="#2B1B4D"/><ellipse cx="30" cy="70" rx="7" ry="4" fill="#FF6E46" opacity=".6"/><ellipse cx="90" cy="70" rx="7" ry="4" fill="#FF6E46" opacity=".6"/><path d="M50 74 Q60 84 70 74" fill="none" stroke="#2B1B4D" stroke-width="5" stroke-linecap="round"/></svg>`;
+function showDiyas(head){
+  const n = Math.min(DIYA_GOAL, (S.dwDays||[]).length), left = DIYA_GOAL - n, row = "🪔".repeat(n) + "⚪".repeat(left);
+  const status = S.diyaSkin ? `<b>Unlocked! ✨</b><small>It's yours forever. Tap Jelly skins to wear it.</small>`
+    : `<b>Golden Diya jelly</b><small>${left} more ${left === 1 ? "day" : "days"} to unlock. Only during Diwali, yours forever.</small>`;
+  $("#dwH").textContent = S.diyaSkin ? "All diyas lit! 🎉" : "Happy Diwali!";
+  $("#dwMsg").innerHTML = (head ? head + "<br>" : "") + `<span class="dwrow">${row}</span>` +
+    `<div class="dwprev">${GOLD_JELLY}<span>${status}</span></div>` +
+    (S.diyaSkin ? "" : `<div class="dwhow">How it works: open Jelly Munch on ${DIYA_GOAL} different days before 11 Nov. Each day lights one diya and gives you +2 lives.</div>`);
+  $("#dwPop").hidden = false; SFX.coin();
+}
+$("#dwTag").addEventListener("click", () => { SFX.click(); showDiyas(""); });
 $("#dwOk").addEventListener("click", () => { SFX.click(); $("#dwPop").hidden = true; });
 $("#dwPop").addEventListener("click", e => { if (e.target.id === "dwPop") $("#dwPop").hidden = true; });
 function diwaliCard(){
