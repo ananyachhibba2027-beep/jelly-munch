@@ -24,6 +24,9 @@
 .dwcard p{margin:0 0 16px;font-weight:700}
 .dwtag{font-weight:800;font-size:15px;color:#B5179E;margin:-2px 0 6px}
 .dwtag[hidden]{display:none}
+html.diwali #room{background:radial-gradient(circle at 1px 1px, rgba(255,210,63,.55) 2px, transparent 2.6px) 0 0/30px 30px, linear-gradient(160deg,var(--bg1),var(--bg2))}
+html.diwali #room::after{content:"🪔  ✨  🎆  🪔  ✨  🎇  🪔  ✨  🎆  🪔";position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:22px;letter-spacing:6px;opacity:.55;white-space:nowrap;overflow:hidden}
+html.diwali #frame{box-shadow:0 8px 0 var(--ink),0 0 34px rgba(255,183,3,.55),0 26px 40px rgba(43,27,77,.28)}
 #toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:50;max-width:min(92vw,420px);background:var(--cream);color:var(--ink);border:3px solid var(--ink);border-radius:18px;box-shadow:0 5px 0 var(--ink);padding:10px 16px;font-weight:700;text-align:center}
 .pack[aria-busy="true"],.btn[aria-busy="true"]{opacity:.6;pointer-events:none}
 </style>
@@ -682,6 +685,13 @@ const calm = () => S.chill || RM;
 // Diwali week: on until the end of 11 Nov 2026 (IST). Add ?diwali=1 to preview it any time.
 const DIWALI = /[?&]diwali=1/.test(location.search) || Date.now() < Date.UTC(2026, 10, 11, 18, 30);
 const SWEET_OF = {berry:"laddoo", orange:"jalebi", grape:"katli", cherry:"jamun", melon:"diya"};
+if (DIWALI) {
+  const DW = [{bg1:"#FFE4B8", bg2:"#FFC9DD", st1:"#FFB703", st2:"#E0115F", tA:"#3E2466", tB:"#47296F"},
+              {bg1:"#FFE9C2", bg2:"#D9D2FF", st1:"#FFD23F", st2:"#6A2C91", tA:"#22305E", tB:"#283767"},
+              {bg1:"#FFD9B0", bg2:"#FFB3A1", st1:"#FF8C1A", st2:"#FFF1C9", tA:"#4A2216", tB:"#53281A"}];
+  WORLDS.forEach((w,i) => Object.assign(w, DW[i]));
+  document.documentElement.classList.add("diwali");
+}
 
 /* ---------- sound (Web Audio, no files) ---------- */
 let ac = null, master = null;

@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script>window.DW = /[?&]diwali=1/.test(location.search) || Date.now() < Date.UTC(2026, 10, 11, 18, 30); if (DW) document.documentElement.classList.add("diwali");</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Jelly Munch · The snake game you grew up with, now squishy</title>
@@ -177,6 +178,17 @@ footer{background:var(--ink);color:#cfc5e6;padding:34px 0;font-size:15px}
 footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
 footer a{color:#fff}
 
+html.diwali .hero{background:radial-gradient(circle at 1px 1px,rgba(255,210,63,.75) 2.5px,transparent 3px) 0 0/38px 38px,linear-gradient(150deg,#FFD9A8,#FFE6EE 45%,#FFE3B0)}
+html.diwali .then-now{background:linear-gradient(160deg,#2B1B4D,#4B1D6B 60%,#6A1B3F)}
+html.diwali .powers{background:linear-gradient(160deg,#FFE4B8,#FFD3E2)}
+html.diwali .final{background:linear-gradient(150deg,#6A2C91,#2B1B4D 55%,#8A1E4F)}
+html.diwali .final h2 .outline{color:#FFD23F}
+.toran{display:none}
+html.diwali .toran{display:block;position:absolute;top:0;left:0;right:0;z-index:3;height:56px;pointer-events:none;overflow:hidden;text-align:center;white-space:nowrap;font-size:26px;line-height:1;letter-spacing:-2px}
+html.diwali .toran span{display:inline-block;animation:sway 3s ease-in-out infinite}
+@keyframes sway{50%{transform:translateY(4px)}}
+.dwpill{display:none}
+html.diwali .dwpill{display:inline-block;background:#FFD23F}
 .reveal{opacity:0;transform:translateY(30px);transition:opacity .7s,transform .7s cubic-bezier(.3,1.4,.5,1)}
 .reveal.in{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){ .reveal{opacity:1;transform:none;transition:none} .floaty,.scroll-hint{animation:none} html{scroll-behavior:auto} }
@@ -191,6 +203,7 @@ footer a{color:#fff}
 </div></div></nav>
 
 <header class="hero" id="top">
+  <div class="toran" aria-hidden="true" id="toran"></div>
   <canvas id="play-bg" aria-hidden="true"></canvas>
   <div class="wrap">
     <div class="copy">
@@ -201,7 +214,7 @@ footer a{color:#fff}
         <a class="btn" href="/play"><span class="tri"></span>Play free</a>
         <a class="btn alt" href="#then-now">See what's new</a>
       </div>
-      <div class="trust"><span class="pill">✓ No download</span><span class="pill">✓ No signup</span><span class="pill">✓ Phone + laptop</span></div>
+      <div class="trust"><span class="pill">✓ No download</span><span class="pill">✓ No signup</span><span class="pill">✓ Phone + laptop</span><span class="pill dwpill">🪔 Diwali gift: 5 free lives</span></div>
       <div class="counter" id="munchCount">Psst… move your mouse (or finger). The jelly is hungry 🍓</div>
     </div>
     <div class="device-col">
@@ -295,13 +308,20 @@ footer a{color:#fff}
 <script>
 (() => {
 const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (DW) {
+  document.querySelector(".kicker").textContent = "🪔 Happy Diwali! The snake is eating mithai this week";
+  document.querySelector(".hero .sub").innerHTML = "Same snake you played on the Nokia, now <b>munching laddoos, jalebis and diyas</b> for Diwali. Sweets with zero calories 😌";
+  const fh = document.querySelector(".final h2"); fh.innerHTML = 'Diwali pe ek aur round? <span class="outline">Go on.</span>';
+  document.querySelectorAll(".final .floaty").forEach((f,i) => f.textContent = ["🪔","🎆","🍬","✨"][i]);
+  const t = document.getElementById("toran"); t.innerHTML = Array.from({length:40}, (_,i) => `<span style="animation-delay:-${(i%7)*.4}s">${["🌼","🌸","🌼","🍃"][i%4]}</span>`).join("");
+}
 
 /* ---------- hero: a jelly snake that chases your pointer and eats fruit ---------- */
 const cv = document.getElementById("play-bg"), cx = cv.getContext("2d");
 let W = 0, H = 0, DPR = 1;
 function size(){ DPR = Math.min(2, devicePixelRatio || 1); W = cv.clientWidth; H = cv.clientHeight; cv.width = W*DPR; cv.height = H*DPR; cx.setTransform(DPR,0,0,DPR,0,0); }
 size(); addEventListener("resize", size);
-const FR = ["🍓","🍊","🍇","🍒","🍉","🍋"];
+const FR = DW ? ["🪔","🍬","🪔","🍬","✨","🪔"] : ["🍓","🍊","🍇","🍒","🍉","🍋"];
 const fruits = [], parts = [];
 const seg = []; const SEG_GAP = 14; let len = 14;
 let head = {x: W*.3, y: H*.88}, target = {x: W*.5, y: H*.6}, lastMove = 0, eaten = 0, t = 0;
@@ -314,7 +334,7 @@ function pointer(x, y){ const r = cv.getBoundingClientRect(); target.x = x - r.l
 addEventListener("pointermove", e => { if (e.clientY < cv.getBoundingClientRect().bottom) pointer(e.clientX, e.clientY); }, {passive:true});
 addEventListener("touchmove", e => { const p = e.touches[0]; if (p && !narrow()) pointer(p.clientX, p.clientY); }, {passive:true});
 const countEl = document.getElementById("munchCount");
-const lines = n => n === 1 ? "1 fruit munched. It wants more 👀" : n < 5 ? `${n} fruits munched. Okay you're good at this.` : n < 10 ? `${n} fruits! Imagine what you'd do in the real game →` : `${n} fruits. Please go play the actual game 😭`;
+const lines = n => DW ? (n === 1 ? "1 mithai munched. Happy Diwali 🪔" : n < 5 ? `${n} sweets! Zero calories, promise 😌` : n < 10 ? `${n} sweets. Go play the real thing →` : `${n} sweets. Okay go play the actual game 😭`) : n === 1 ? "1 fruit munched. It wants more 👀" : n < 5 ? `${n} fruits munched. Okay you're good at this.` : n < 10 ? `${n} fruits! Imagine what you'd do in the real game →` : `${n} fruits. Please go play the actual game 😭`;
 function step(now){
   t += 1/60;
   if (now - lastMove > 2500 && fruits.length) { // idle: chase the nearest fruit
@@ -334,6 +354,8 @@ function step(now){
       setTimeout(addFruit, 600);
     }
   }
+  if (DW && !RM && Math.random() < .025) { const fx = 40 + Math.random()*(W-80), fy = 40 + Math.random()*H*.35, col = ["#FFD23F","#FF5FA2","#FF8C1A","#7CF5D0","#B79CFF"][Math.random()*5|0];
+    for (let k = 0; k < 26; k++) { const a = k/26*6.283, v = 3 + Math.random()*2.5; parts.push({x:fx, y:fy, vx:Math.cos(a)*v, vy:Math.sin(a)*v - 1, l:1.4, c:col}); } }
   draw(); requestAnimationFrame(step);
 }
 function draw(){
@@ -384,10 +406,10 @@ const WORLDS = [
   {a:"#8FCBFF", b:"#A6D6FF", rim:"#5AB8FF", wall:"#E8F6FF", walls:[[6,2],[6,3],[6,4],[6,7],[6,8],[6,9]], portals:[[2,9],[10,2]]},
   {a:"#8A5A3C", b:"#9A6847", rim:"#FF9F1C", wall:"#F4C38E", walls:[[2,4],[3,4],[4,4],[5,4],[7,8],[8,8],[9,8],[10,8]]},
 ];
-const GN = 12, FRUIT = ["🍓","🍊","🍇","🍒","🍉"];
+const GN = 12, FRUIT = DW ? ["🪔","🍬","🪔","🍬","🎁"] : ["🍓","🍊","🍇","🍒","🍉"];
 function board(cv){
   const w = WORLDS[+cv.dataset.world||0], c = cv.getContext("2d");
-  let sn = [{x:5,y:6},{x:4,y:6},{x:3,y:6},{x:2,y:6}], dir = {x:1,y:0}, fr = {x:9,y:3,e:"🍓"}, prev = sn.map(p=>({...p})), acc = 0, last = 0, pop = 0;
+  let sn = [{x:5,y:6},{x:4,y:6},{x:3,y:6},{x:2,y:6}], dir = {x:1,y:0}, fr = {x:9,y:3,e:DW ? "🪔" : "🍓"}, prev = sn.map(p=>({...p})), acc = 0, last = 0, pop = 0;
   const wall = (x,y) => w.walls.some(q => q[0]===x && q[1]===y);
   const free = (x,y) => x>=0 && y>=0 && x<GN && y<GN && !wall(x,y) && !sn.slice(0,-1).some(s => s.x===x && s.y===y);
   function newFruit(){ let x,y; do { x = Math.random()*GN|0; y = Math.random()*GN|0; } while (!free(x,y) || sn.some(s=>s.x===x&&s.y===y)); fr = {x, y, e: FRUIT[Math.random()*FRUIT.length|0]}; }
