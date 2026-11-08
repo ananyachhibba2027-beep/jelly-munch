@@ -24,6 +24,7 @@
 .dwcard p{margin:0 0 16px;font-weight:700}
 .dwtag{font-weight:800;font-size:15px;color:#B5179E;margin:-2px 0 6px}
 .dwtag[hidden]{display:none}
+.dwrow{display:inline-block;margin-top:10px;font-size:28px;letter-spacing:4px}
 html.diwali #room{background:radial-gradient(circle at 1px 1px, rgba(255,210,63,.55) 2px, transparent 2.6px) 0 0/30px 30px, linear-gradient(160deg,var(--bg1),var(--bg2))}
 html.diwali #room::after{content:"🪔  ✨  🎆  🪔  ✨  🎇  🪔  ✨  🎆  🪔";position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:22px;letter-spacing:6px;opacity:.55;white-space:nowrap;overflow:hidden}
 html.diwali #frame{box-shadow:0 8px 0 var(--ink),0 0 34px rgba(255,183,3,.55),0 26px 40px rgba(43,27,77,.28)}
@@ -312,7 +313,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
 </div>
 
 <div id="toast" role="status" aria-live="polite" hidden></div>
-<div class="dwpop" id="dwPop" hidden><div class="dwcard" role="dialog" aria-labelledby="dwH"><div class="dwi">🪔</div><h2 id="dwH">Happy Diwali!</h2><p>Here are <b>5 free lives</b> from us. This week the jelly eats laddoos, jalebis and kaju katli instead of fruit 🍬</p><button class="btn" id="dwOk">Let's munch!</button></div></div>
+<div class="dwpop" id="dwPop" hidden><div class="dwcard" role="dialog" aria-labelledby="dwH"><div class="dwi">🪔</div><h2 id="dwH">Happy Diwali!</h2><p id="dwMsg">Here are <b>5 free lives</b> from us.</p><button class="btn" id="dwOk">Let's munch!</button></div></div>
 
 <!-- Home -->
 <section class="screen home" id="scrHome">
@@ -481,7 +482,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     <div class="bigtimer" id="shTimer">Next life in 20:00</div>
     <p id="shText">Lives refill on their own. Can't wait? Jump back in now.</p>
     <div class="packs">
-      <button class="pack" id="pkAd"><span class="hs">▶</span><span class="nm">Watch a video<small>Get 1 life for free</small></span><span class="pr">Free</span></button>
+      <button class="pack" id="pkAd"><span class="hs">▶</span><span class="nm">Watch a video<small>Refill all your lives, free (once)</small></span><span class="pr">Free</span></button>
       <button class="pack" data-item="refill"><span class="hs">♥</span><span class="nm">Refill all lives<small>Back to full, right now</small></span><span class="pr">₹49</span></button>
       <button class="pack" data-item="unlim2h"><span class="tag">Best value</span><span class="hs">∞</span><span class="nm">Unlimited lives<small>Play as much as you want for 2 hours</small></span><span class="pr">₹79</span></button>
     </div>
@@ -616,6 +617,7 @@ const SKINS = [
   {id:"grape",     name:"Grape Jelly", need:20, tube:"#9B5DE5", a:["#E8D6FF","#8A4BDB"], b:["#F2E8FF","#A970EE"], cheek:"rgba(255,140,200,.8)"},
   {id:"blueberry", name:"Blue Razz", need:30, tube:"#3A9BFF", a:["#D2E9FF","#2F86F0"], b:["#E6F2FF","#5AB0FF"], cheek:"rgba(255,140,190,.8)"},
   {id:"rainbow",   name:"Rainbow", need:45,   tube:"rainbow"},
+  {id:"diya",      name:"Golden Diya", need:1e9, special:true, tube:"#F4A100", a:["#FFF1B8","#F4A100"], b:["#FFF8D6","#FFC93C"], cheek:"rgba(255,110,70,.85)"},
 ];
 const skinCss = k => k.tube === "rainbow" ? "linear-gradient(90deg,#FF5FA2,#FFC93C,#3DE0B5,#5AB8FF,#9B5DE5)" : `linear-gradient(90deg,${k.a[1]},${k.b[0]} 50%,${k.a[1]})`;
 const curSkin = () => SKINS.find(k => k.id === S.skin) || SKINS[0];
@@ -671,7 +673,7 @@ function syncLives(){
   if (S.lifeBank) { S.lives += S.lifeBank; S.lifeBank = 0; S.livesUpd = now; }
   if (S.lives >= mx) { S.livesAt = now; return; }
   const n = Math.floor((now - (S.livesAt||now)) / regenMs());
-  if (n > 0) { S.lives = Math.min(mx, S.lives + n); S.livesAt = S.lives >= mx ? now : (S.livesAt + n*regenMs()); S.livesUpd = now; }
+  if (n > 0) { S.lives = Math.min(mx, S.lives + n); S.livesAt = S.lives >= mx ? now : (S.livesAt + n*regenMs()); S.livesUpd = now; if (S.lives >= mx) S.vidUsed = 0; }  // lives came back on their own: the free video refill is available again
 }
 const nextLifeIn = () => S.lives >= maxLives() ? 0 : Math.max(0, (S.livesAt + regenMs()) - Date.now());
 function addLives(n){ syncLives(); S.lives += n; S.livesUpd = Date.now(); }
@@ -684,6 +686,7 @@ const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").m
 const calm = () => S.chill || RM;
 // Diwali week: on until the end of 11 Nov 2026 (IST). Add ?diwali=1 to preview it any time.
 const DIWALI = /[?&]diwali=1/.test(location.search) || Date.now() < Date.UTC(2026, 10, 11, 18, 30);
+const DIYA_GOAL = 3;
 const SWEET_OF = {berry:"laddoo", orange:"jalebi", grape:"katli", cherry:"jamun", melon:"diya"};
 if (DIWALI) {
   const DW = [{bg1:"#FFE4B8", bg2:"#FFC9DD", st1:"#FFB703", st2:"#E0115F", tA:"#3E2466", tB:"#47296F"},
@@ -1334,7 +1337,16 @@ function showHome(){
   if (DIWALI) {
     $("#dwTag").hidden = false; $("#mascotSay").textContent = "Happy Diwali! 🪔";
     const fx = document.querySelectorAll(".homefx span"); ["🪔","✨","🍬","🎆","🪔","🍬","✨","🎇"].forEach((e,i) => { if (fx[i]) fx[i].textContent = e; });
-    if (!S.dw26) { S.dw26 = 1; addLives(5); save(); renderLives(); setTimeout(() => { if (state === "home") { $("#dwPop").hidden = false; SFX.coin(); } }, 700); }
+    const today = new Date(Date.now() + 5.5*3600e3).toISOString().slice(0,10), days = S.dwDays || (S.dwDays = []);
+    const first = !S.dw26, newDay = !days.includes(today);
+    let msg = "";
+    if (newDay) days.push(today);
+    const n = Math.min(DIYA_GOAL, days.length), row = "🪔".repeat(n) + "⚪".repeat(DIYA_GOAL - n);
+    if (first) { S.dw26 = 1; addLives(5); msg = `Here are <b>5 free lives</b> 🎁 Play on 3 days till 11 Nov to light all the diyas and unlock the <b>Golden Diya</b> jelly ✨<br><span class="dwrow">${row}</span>`; }
+    else if (newDay) { addLives(2); msg = n >= DIYA_GOAL ? `All ${DIYA_GOAL} diyas lit! <b>Golden Diya jelly unlocked</b> ✨ Pick it in Jelly skins. +2 lives too.<br><span class="dwrow">${row}</span>` : `Diya ${n} lit! <b>+2 lives</b> 🎁 Come back tomorrow to light the next one.<br><span class="dwrow">${row}</span>`; }
+    if (n >= DIYA_GOAL) S.diyaSkin = 1;
+    $("#dwTag").innerHTML = S.diyaSkin ? "🪔 Golden Diya jelly unlocked ✨" : `🪔 Diwali diyas: ${row} · come back tomorrow for the next one`;
+    if (msg) { save(); renderLives(); $("#dwMsg").innerHTML = msg; setTimeout(() => { if (state === "home") { $("#dwPop").hidden = false; SFX.coin(); } }, 700); }
   }
   if (giftReady()) setTimeout(() => state === "home" && sayMascot("A gift for you 🎁"), 900);
 }
@@ -1424,7 +1436,7 @@ async function setUser(u){
   authUser = u || null; renderAccount();
   if (authUser && authUser.id !== before) await pullMerge();
 }
-function progressSnapshot(){ return {stars:S.stars, best:S.best, skin:S.skin, plus:!!S.plus, lifeBank:S.lifeBank||0, earlyUntil:S.earlyUntil||0, fails:S.fails||0, paidIds:S.paidIds||[], lives:S.lives, livesAt:S.livesAt||0, livesUpd:S.livesUpd||0, unlimUntil:S.unlimUntil||0, gift:S.gift||null}; }
+function progressSnapshot(){ return {stars:S.stars, best:S.best, skin:S.skin, plus:!!S.plus, lifeBank:S.lifeBank||0, earlyUntil:S.earlyUntil||0, fails:S.fails||0, paidIds:S.paidIds||[], lives:S.lives, livesAt:S.livesAt||0, livesUpd:S.livesUpd||0, unlimUntil:S.unlimUntil||0, gift:S.gift||null, vidUsed:S.vidUsed||0, dw26:S.dw26||0, dwDays:S.dwDays||[], diyaSkin:S.diyaSkin||0}; }
 function mergeProgress(a, b){
   const out = Object.assign({}, a), sa = a.stars||{}, sb2 = b.stars||{}, ba = a.best||{}, bb = b.best||{};
   out.stars = Object.assign({}, sa); for (const k in sb2) out.stars[k] = Math.max(out.stars[k]||0, sb2[k]||0);
@@ -1437,6 +1449,9 @@ function mergeProgress(a, b){
   const nb = (b.livesUpd||0) > (a.livesUpd||0) && typeof b.lives === "number";
   out.lives = nb ? b.lives : a.lives; out.livesAt = nb ? b.livesAt : a.livesAt; out.livesUpd = Math.max(a.livesUpd||0, b.livesUpd||0);
   out.unlimUntil = Math.max(a.unlimUntil||0, b.unlimUntil||0);
+  out.vidUsed = nb ? (b.vidUsed||0) : (a.vidUsed||0);
+  out.dw26 = (a.dw26 || b.dw26) ? 1 : 0; out.diyaSkin = (a.diyaSkin || b.diyaSkin) ? 1 : 0;
+  out.dwDays = [...new Set([...(a.dwDays||[]), ...(b.dwDays||[])])];
   out.gift = [a.gift, b.gift].filter(Boolean).sort((x, y) => x.day < y.day ? 1 : -1)[0] || null;
   out.skin = a.skin || b.skin || "bubblegum";
   return out;
@@ -1480,9 +1495,10 @@ function showSkins(){
   $("#skStars").textContent = `${total} stars collected`;
   const grid = $("#skinGrid"); grid.innerHTML = "";
   SKINS.forEach(k => {
-    const open = S.plus || total >= k.need, b = document.createElement("button");
+    if (k.special && !DIWALI && !S.diyaSkin) return;
+    const open = k.special ? !!S.diyaSkin : (S.plus || total >= k.need), b = document.createElement("button");
     b.className = "skin"; b.disabled = !open; b.setAttribute("aria-pressed", String(curSkin().id === k.id));
-    b.innerHTML = `<span class="sw-skin" style="background:${skinCss(k)}"></span><span>${k.name}</span>` + (open ? "" : `<small>★ ${k.need} to unlock</small>`);
+    b.innerHTML = `<span class="sw-skin" style="background:${skinCss(k)}"></span><span>${k.name}</span>` + (open ? "" : k.special ? `<small>🪔 Light 3 Diwali diyas</small>` : `<small>★ ${k.need} to unlock</small>`);
     b.addEventListener("click", () => { S.skin = k.id; save(); SFX.click(); showSkins(); });
     grid.appendChild(b);
   });
@@ -1639,7 +1655,7 @@ function showAd(mode, forLevel){
   state = "ad"; screen("scrAd");
   const total = 5; let left = total;
   $("#btnClaim").hidden = true; $("#adCancel").hidden = false;
-  $("#adText").textContent = adMode === "life" ? "Your free life is almost ready…" : "Your extra try is almost ready…";
+  $("#adText").textContent = adMode === "life" ? "Your free refill is almost ready…" : "Your extra try is almost ready…";
   const tick = () => {
     if (state !== "ad") return;
     $("#adCount").textContent = left;
@@ -1651,7 +1667,7 @@ function showAd(mode, forLevel){
 }
 function claimLife(){
   clearTimeout(adTimer);
-  if (adMode === "life") { addLives(1); save(); SFX.power(); toast("+1 life ♥"); if (adFor != null) openLevel(adFor); else showMap(); return; }
+  if (adMode === "life") { syncLives(); S.lives = Math.max(S.lives, maxLives()); S.livesAt = Date.now(); S.livesUpd = Date.now(); S.vidUsed = 1; save(); SFX.power(); toast("Lives refilled ♥ That was your free refill. Next one after your lives fill up on their own.", 5000); if (adFor != null) openLevel(adFor); else showMap(); return; }
   if (g.charged) { g.charged = false; addLives(1); save(); }  // continuing the run: refund the life
   g.adUsed = true; g.lives = 1; updateHud();
   SFX.power(); screen(null);
@@ -1694,6 +1710,8 @@ function renderLives(){
     $("#shTimer").textContent = un ? `${fmtLong(S.unlimUntil - Date.now())} left` : nx ? `Next life in ${fmtLong(nx)}` : "Lives are full";
     $("#shText").textContent = out ? "Lives refill on their own. Can't wait? Jump back in now." : "Losing a level from level 6 on costs 1 life. They refill over time.";
     $("#shPlus").hidden = !!S.plus;
+    $("#pkAd").hidden = !out || !!S.vidUsed;
+    if (out && S.vidUsed) $("#shText").textContent = "You've used your free video refill. Wait for your lives to fill back up, or jump back in now.";
   }
   if (state === "fail") { const can = canPlay(g.i); $("#btnRetry").textContent = can ? "Run it back" : "Get more lives"; }
 }
