@@ -30,6 +30,11 @@
 .dwprev b{color:#FFD23F;font:400 20px "Lilita One",var(--body);display:block}
 .dwprev small{font-size:13px;opacity:.85}
 .dwhow{font-size:14px;font-weight:600;opacity:.9;margin:8px 0 0}
+.dailybar{background:linear-gradient(#E6FFF6,#7CF0CF)!important}
+.dyicon{font-size:52px;line-height:1;margin:2px 0 6px}
+.dytries{font-weight:800;margin:6px 0 4px}
+.dytries .t{display:inline-block;width:16px;height:16px;border-radius:50%;border:3px solid var(--ink);margin:0 3px;vertical-align:-3px;background:#3DE0B5}
+.dytries .t.u{background:#E4DCEF}
 .dwtag{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
 html.diwali #room{background:radial-gradient(circle at 1px 1px, rgba(255,210,63,.55) 2px, transparent 2.6px) 0 0/30px 30px, linear-gradient(160deg,var(--bg1),var(--bg2))}
 html.diwali #room::after{content:"🪔  ✨  🎆  🪔  ✨  🎇  🪔  ✨  🎆  🪔";position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:22px;letter-spacing:6px;opacity:.55;white-space:nowrap;overflow:hidden}
@@ -341,6 +346,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     <p>A quick, juicy break: eat the fruit, grow your jelly snake, dodge the wall and your own tail.</p>
     <div class="row chiprow"><span class="chip"><span class="s">★</span><span id="starTotal">0 stars collected</span></span><button class="chip livechip" id="homeLives" aria-label="Lives"><span class="jh">♥</span><span class="jn">5</span><span class="jt"></span></button></div>
     <button class="giftbar" id="btnGift" hidden><span class="gi">🎁</span><span id="giftText">Daily gift ready! Tap to claim</span></button>
+    <button class="giftbar dailybar" id="btnDaily"><span class="gi">⚡</span><span id="dailyText">Daily challenge</span></button>
     <button class="btn pulse" id="btnPlay">Let's munch!</button>
     <div class="row"><button class="btn alt" id="btnSkins">Jelly skins</button><button class="btn alt lbbtn" id="btnLb">🏆 Leaderboard</button></div>
     <div class="row">
@@ -417,6 +423,18 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
 </section>
 
 <!-- Level intro -->
+<section class="screen" id="scrDaily" hidden>
+  <div class="panel">
+    <div class="eyebrow" id="dyEyebrow">Daily challenge</div>
+    <div class="dyicon" id="dyIcon">⚡</div>
+    <h2 id="dyTitle">Daily challenge</h2>
+    <div class="lead" id="dyMission"></div>
+    <p id="dyText"></p>
+    <div class="dytries" id="dyTries"></div>
+    <button class="btn" id="dyGo">Start</button>
+    <button class="link" id="dyHome">Back to home</button>
+  </div>
+</section>
 <section class="screen" id="scrIntro" hidden>
   <div class="panel">
     <div class="eyebrow" id="inWorld">Candy Garden · Level 1-1</div>
@@ -580,7 +598,23 @@ const ENDLESS_NAMES = [
   ["Molten Mocha","Brownie Crater","Caramel Cliffs","Fudge Furnace","Cocoa Canyon","Toffee Peak"]];
 function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const genCache = {};
+/* ---------- daily challenge: one mission a day, free, 3 tries ---------- */
+const DAILY = -1, DAILY_TRIES = 3;
+const istDay = (o = 0) => new Date(Date.now() + 5.5*3600e3 + o*864e5).toISOString().slice(0,10);
+function dailyLevel(){
+  const day = istDay();
+  if (genCache.daily && genCache.daily.day === day) return genCache.daily;
+  const fr = DIWALI ? "sweets" : "fruits";
+  const T = [
+    {name:"Speed Run", w:0, goal:12, step:120, timeLimit:45, golden:true, mission:`Eat 12 ${fr} in 45 seconds`, tip:"The clock counts down. Keep moving!"},
+    {name:"Golden Hunter", w:1, goal:3, step:118, golden:true, goldRate:.6, goldOnly:true, portals:[[3,3],[16,16]], mission:"Eat 3 golden fruits", tip:"Only golden fruit counts. Eating the normal ones makes gold appear."},
+    {name:"Fudge Run", w:2, goal:15, step:112, walls:MAZE, golden:true, mission:`Eat 15 ${fr} in the fudge maze`, tip:"Find the gaps and keep your tail out of the way."},
+    {name:"Hop Chase", w:1, goal:14, step:116, moving:true, portals:[[3,16],[16,3]], golden:true, mission:`Catch 14 hopping ${fr}`, tip:"They hop every few seconds. Cut them off!"},
+  ][Math.floor(Date.parse(day)/864e5) % 4];
+  return genCache.daily = Object.assign({daily:true, day, tipText:T.tip}, T);
+}
 function getLevel(i){
+  if (i === DAILY) return dailyLevel();
   if (i < LEVELS.length) return LEVELS[i];
   if (genCache[i]) return genCache[i];
   const n = i - LEVELS.length, w = n % 3, R = rng(i*7919 + 17);
@@ -885,11 +919,12 @@ function grabPower(pw){
 }
 const stepLen = () => g.stepMs * (g.t < g.slowUntil ? 1.6 : 1);
 function eat(f, val){
+  if (g.L.goldOnly) val = f.type === "gold" ? 1 : 0;
   g.combo = (g.t - g.lastEat < 4) ? g.combo + 1 : 1; g.lastEat = g.t;
   if (g.t < g.doubleUntil) val *= 2;
   g.eaten = Math.min(g.L.goal, g.eaten + val);
   burst(f.x, f.y, FCOL[f.type] || FCOL.gold, calm()?8:16);
-  floatText(f.x, f.y, "+" + val, "#FFE14D", .9);
+  if (val) floatText(f.x, f.y, "+" + val, "#FFE14D", .9);
   if (f.type === "gold") { SFX.gold(); floatText(f.x, f.y-1.2, pick(MSG.gold), "#FFF3A6", 1); g.gold = null; }
   else {
     SFX.pop(g.combo);
@@ -935,6 +970,7 @@ function respawn(){
   startCountdown();
 }
 function win(){
+  if (g.L.daily) return dailyWin();
   g.won = true; g.acc = g.stepMs; state = "won";
   const t = g.t, par = parTime(g.L);
   const stars = t <= par ? 3 : t <= par*1.6 ? 2 : 1;
@@ -1277,10 +1313,11 @@ function loop(now){
       if (g.power && g.t > g.power.until) { burst(g.power.x,g.power.y,"#FFFFFF",6); g.power = null; }
       for (const k of ["ghostUntil","slowUntil","magnetUntil","doubleUntil"]) { if (g[k] > 0 && g.t >= g[k]) { g[k] = -1; SFX.fade(); } }
       if (g.gold && g.t > g.gold.until) { burst(g.gold.x,g.gold.y,"#FFE14D",6); g.gold = null; }
+      if (g.L.timeLimit && g.t >= g.L.timeLimit && state === "play") { g.lives = 1; die("wall"); const fl = g.floats[g.floats.length-1]; if (fl) fl.text = "Time's up! ⏰"; }
     }
   }
   if (g.fruit && g.fruit.hopT < 1) g.fruit.hopT = Math.min(1, g.fruit.hopT + dt*4);
-  if (!g.demo) { const sec = Math.floor(g.t); if (sec !== shownSec) { shownSec = sec; $("#clock").textContent = fmt(g.t); } }
+  if (!g.demo) { const sec = Math.floor(g.t); if (sec !== shownSec) { shownSec = sec; $("#clock").textContent = g.L.timeLimit ? "⏰ " + fmt(Math.max(0, g.L.timeLimit - g.t)) : fmt(g.t); } }
   render(dt);
 }
 
@@ -1299,8 +1336,8 @@ function applyWorld(wi){
 function updateHud(pulse){
   if (!g || g.demo) return;
   const w = WORLDS[g.L.w];
-  $("#hudWorld").textContent = w.name;
-  $("#hudLevel").textContent = g.L.endless ? "Lv " + (g.i+1) : levelLabel(g.i);
+  $("#hudWorld").textContent = g.L.daily ? "⚡ Daily challenge" : w.name;
+  $("#hudLevel").textContent = g.L.daily ? g.L.name : g.L.endless ? "Lv " + (g.i+1) : levelLabel(g.i);
   $("#progFill").style.width = (g.eaten/g.L.goal*100) + "%";
   $("#progText").textContent = `${g.eaten}/${g.L.goal}`;
   const hb = $("#hearts");
@@ -1339,7 +1376,7 @@ addEventListener("pointermove", e => { if (state !== "home") return; const m = $
 function showHome(){
   state = "home"; applyWorld(0); newGame(0, true);
   $("#starTotal").textContent = `${starTotal()} stars collected`;
-  screen("scrHome"); renderLives(); renderGift();
+  screen("scrHome"); renderLives(); renderGift(); renderDaily();
   if (DIWALI) {
     $("#dwTag").hidden = false; $("#mascotSay").textContent = "Happy Diwali! 🪔";
     const fx = document.querySelectorAll(".homefx span"); ["🪔","✨","🍬","🎆","🪔","🍬","✨","🎇"].forEach((e,i) => { if (fx[i]) fx[i].textContent = e; });
@@ -1442,7 +1479,7 @@ async function setUser(u){
   authUser = u || null; renderAccount();
   if (authUser && authUser.id !== before) await pullMerge();
 }
-function progressSnapshot(){ return {stars:S.stars, best:S.best, skin:S.skin, plus:!!S.plus, lifeBank:S.lifeBank||0, earlyUntil:S.earlyUntil||0, fails:S.fails||0, paidIds:S.paidIds||[], lives:S.lives, livesAt:S.livesAt||0, livesUpd:S.livesUpd||0, unlimUntil:S.unlimUntil||0, gift:S.gift||null, vidUsed:S.vidUsed||0, dw26:S.dw26||0, dwDays:S.dwDays||[], diyaSkin:S.diyaSkin||0}; }
+function progressSnapshot(){ return {stars:S.stars, best:S.best, skin:S.skin, plus:!!S.plus, lifeBank:S.lifeBank||0, earlyUntil:S.earlyUntil||0, fails:S.fails||0, paidIds:S.paidIds||[], lives:S.lives, livesAt:S.livesAt||0, livesUpd:S.livesUpd||0, unlimUntil:S.unlimUntil||0, gift:S.gift||null, daily:S.daily||null, vidUsed:S.vidUsed||0, dw26:S.dw26||0, dwDays:S.dwDays||[], diyaSkin:S.diyaSkin||0}; }
 function mergeProgress(a, b){
   const out = Object.assign({}, a), sa = a.stars||{}, sb2 = b.stars||{}, ba = a.best||{}, bb = b.best||{};
   out.stars = Object.assign({}, sa); for (const k in sb2) out.stars[k] = Math.max(out.stars[k]||0, sb2[k]||0);
@@ -1455,6 +1492,7 @@ function mergeProgress(a, b){
   const nb = (b.livesUpd||0) > (a.livesUpd||0) && typeof b.lives === "number";
   out.lives = nb ? b.lives : a.lives; out.livesAt = nb ? b.livesAt : a.livesAt; out.livesUpd = Math.max(a.livesUpd||0, b.livesUpd||0);
   out.unlimUntil = Math.max(a.unlimUntil||0, b.unlimUntil||0);
+  out.daily = [a.daily, b.daily].filter(Boolean).sort((x, y) => (x.day < y.day || (x.day === y.day && (x.done||0) + (x.tries||0)/10 < (y.done||0) + (y.tries||0)/10)) ? 1 : -1)[0] || null;
   out.vidUsed = nb ? (b.vidUsed||0) : (a.vidUsed||0);
   out.dw26 = (a.dw26 || b.dw26) ? 1 : 0; out.diyaSkin = (a.diyaSkin || b.diyaSkin) ? 1 : 0;
   out.dwDays = [...new Set([...(a.dwDays||[]), ...(b.dwDays||[])])];
@@ -1723,6 +1761,7 @@ function renderLives(){
 }
 setInterval(() => { if (["home","map","fail","shop"].includes(state)) renderLives(); }, 1000);
 function showFail(){
+  if (g.L.daily) { dailyScreen("fail"); return; }
   if (state === "dying") SFX.gameOver();
   state = "fail";
   $("#flTitle").textContent = pick(MSG.failTitle[g.cause] || MSG.failTitle.wall);
@@ -1822,6 +1861,53 @@ $("#btnAccount").addEventListener("click", () => { SFX.click(); showAccount(); }
 $("#wnSave").addEventListener("click", () => { SFX.click(); showAccount(); });
 $("#acBack").addEventListener("click", () => { SFX.click(); showHome(); });
 const GOLD_JELLY = `<svg viewBox="0 0 120 100" aria-hidden="true"><defs><radialGradient id="gj" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#FFF6C2"/><stop offset=".55" stop-color="#FFC93C"/><stop offset="1" stop-color="#E08A00"/></radialGradient></defs><ellipse cx="60" cy="58" rx="50" ry="40" fill="url(#gj)" stroke="#2B1B4D" stroke-width="6"/><ellipse cx="42" cy="34" rx="14" ry="7" fill="#fff" opacity=".7"/><ellipse cx="44" cy="54" rx="10" ry="12" fill="#fff" stroke="#2B1B4D" stroke-width="4"/><ellipse cx="76" cy="54" rx="10" ry="12" fill="#fff" stroke="#2B1B4D" stroke-width="4"/><circle cx="46" cy="57" r="5" fill="#2B1B4D"/><circle cx="78" cy="57" r="5" fill="#2B1B4D"/><ellipse cx="30" cy="70" rx="7" ry="4" fill="#FF6E46" opacity=".6"/><ellipse cx="90" cy="70" rx="7" ry="4" fill="#FF6E46" opacity=".6"/><path d="M50 74 Q60 84 70 74" fill="none" stroke="#2B1B4D" stroke-width="5" stroke-linecap="round"/></svg>`;
+function dailyState(){ const d = istDay(); if (!S.daily || S.daily.day !== d) S.daily = {day:d, tries:0, done:0, streak:(S.daily && S.daily.streak)||0, last:(S.daily && S.daily.last)||""}; return S.daily; }
+const streakNow = ds => (ds.last === istDay() || ds.last === istDay(-1)) ? ds.streak : 0;
+function renderDaily(){
+  const ds = dailyState(), L = dailyLevel(), left = DAILY_TRIES - ds.tries, st = streakNow(ds);
+  $("#dailyText").textContent = ds.done ? `Daily challenge done ✓${st > 1 ? ` · 🔥 ${st}-day streak` : ""} · new one tomorrow`
+    : left <= 0 ? "Daily challenge: no tries left · new one tomorrow" : `Daily challenge: ${L.mission} · +2 lives`;
+}
+function dailyScreen(mode){
+  const ds = dailyState(), L = dailyLevel(), left = DAILY_TRIES - ds.tries, st = streakNow(ds);
+  state = "daily";
+  $("#dyEyebrow").textContent = `Daily challenge · ${L.name}`;
+  $("#dyMission").textContent = L.mission;
+  const dots = Array.from({length:DAILY_TRIES}, (_,k) => `<span class="t${k < ds.tries ? " u" : ""}"></span>`).join("");
+  $("#dyTries").innerHTML = ds.done ? "" : `${dots}<br>${left} of ${DAILY_TRIES} tries left today`;
+  $("#dyGo").hidden = !!ds.done || left <= 0;
+  if (mode === "won") {
+    $("#dyIcon").textContent = "🏆"; $("#dyTitle").textContent = "Challenge complete!";
+    $("#dyText").innerHTML = `<b>+2 lives</b> ♥${st > 1 ? ` · 🔥 <b>${st}-day streak</b>` : ""}<br>A new challenge drops tomorrow. Don't break the streak!`;
+  } else if (mode === "fail") {
+    $("#dyIcon").textContent = "😵"; $("#dyTitle").textContent = L.timeLimit && g.t >= L.timeLimit ? "Time's up!" : "So close!";
+    $("#dyText").textContent = left > 0 ? `You got ${g.eaten} of ${L.goal}. Shake it off and go again.` : `You got ${g.eaten} of ${L.goal}. No tries left today. A new challenge drops tomorrow!`;
+    $("#dyGo").textContent = "Try again";
+  } else {
+    $("#dyIcon").textContent = ds.done ? "✅" : "⚡"; $("#dyTitle").textContent = ds.done ? "Done for today!" : L.name;
+    $("#dyText").innerHTML = ds.done ? `You beat today's challenge${st > 1 ? ` · 🔥 ${st}-day streak` : ""}. Come back tomorrow for a new one.`
+      : left <= 0 ? "No tries left today. A new challenge drops tomorrow!" : `${L.tipText}<br><b>Reward: +2 lives</b> · Free to play, doesn't use your lives. One heart per try.`;
+    $("#dyGo").textContent = "Start";
+  }
+  screen("scrDaily");
+}
+function openDaily(){ applyWorld(dailyLevel().w); newGame(DAILY, false); g.lives = 1; updateHud(); shownSec = -1; dailyScreen("intro"); }
+function startDaily(){
+  const ds = dailyState(); if (ds.done || ds.tries >= DAILY_TRIES) return;
+  ds.tries++; save();
+  applyWorld(dailyLevel().w); newGame(DAILY, false); g.lives = 1; updateHud(); shownSec = -1; startCountdown();
+}
+function dailyWin(){
+  g.won = true; g.acc = g.stepMs; state = "won";
+  const ds = dailyState();
+  ds.streak = ds.last === istDay(-1) ? (ds.streak||0) + 1 : 1; ds.last = istDay(); ds.done = 1;
+  addLives(2); save(); SFX.win(true);
+  for (let k=0;k<(calm()?2:5);k++) confetti(4+Math.random()*12, 3+Math.random()*10, 14);
+  setTimeout(() => { if (state === "won") dailyScreen("won"); }, 1000);
+}
+$("#btnDaily").addEventListener("click", () => { SFX.click(); openDaily(); });
+$("#dyGo").addEventListener("click", () => { SFX.click(); startDaily(); });
+$("#dyHome").addEventListener("click", () => { SFX.click(); showHome(); });
 function showDiyas(head){
   const n = Math.min(DIYA_GOAL, (S.dwDays||[]).length), left = DIYA_GOAL - n, row = "🪔".repeat(n) + "⚪".repeat(left);
   const status = S.diyaSkin ? `<b>Unlocked! ✨</b><small>It's yours forever. Tap Jelly skins to wear it.</small>`
