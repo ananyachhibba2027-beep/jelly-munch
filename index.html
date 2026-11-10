@@ -176,11 +176,12 @@ section.block{padding:100px 0;position:relative}
 .final h2 .outline{color:var(--lemon)}
 .final p{font-size:21px;font-weight:700;margin:0 auto 30px;max-width:560px}
 .final .btn{background:linear-gradient(#FFF6B0,var(--lemon) 55%,#FFC93C);color:var(--ink);font-size:30px;padding:18px 44px}
-.itchcard{position:relative;z-index:1;display:flex;align-items:center;gap:18px;max-width:640px;margin:38px auto 0;background:#fff;color:var(--ink);border:4px solid var(--ink);border-radius:26px;box-shadow:0 8px 0 var(--ink);padding:18px 22px;text-align:left}
+.itchcard{position:relative;z-index:1;display:flex;align-items:center;gap:18px;max-width:640px;margin:0 auto;background:#fff;color:var(--ink);border:4px solid var(--ink);border-radius:26px;box-shadow:0 8px 0 var(--ink);padding:18px 22px;text-align:left}
 .itchcard .ic{font-size:44px;line-height:1;flex:none;transform:rotate(-8deg)}
 .itchcard .tx{flex:1}.itchcard .tx b{display:block;font:400 26px var(--display)}.itchcard .tx span{font-size:16px;color:#4a3a6b;font-weight:700}
-.final .itchcard .btn{background:linear-gradient(#FF8A8A,#FA5C5C 55%,#D93A3A);color:#fff;font-size:20px;padding:10px 22px;flex:none;box-shadow:0 5px 0 var(--ink)}
+.itchcard .btn{background:linear-gradient(#FF8A8A,#FA5C5C 55%,#D93A3A);color:#fff;font-size:20px;padding:10px 22px;flex:none;box-shadow:0 5px 0 var(--ink)}
 @media (max-width:640px){.itchcard{flex-direction:column;text-align:center}}
+.itchband{padding:34px 0;background:linear-gradient(180deg,#FFF2F8,#FFF8F1)}
 .floaty{position:absolute;font-size:44px;animation:float 6s ease-in-out infinite;pointer-events:none}
 @keyframes float{50%{transform:translateY(-22px) rotate(12deg)}}
 
@@ -234,6 +235,16 @@ html.diwali .dwpill{display:inline-block;background:#FFD23F}
   </div>
   <div class="scroll-hint">scroll ↓</div>
 </header>
+
+<section class="itchband">
+  <div class="wrap">
+    <div class="itchcard reveal">
+      <div class="ic">🎮</div>
+      <div class="tx"><b>Jelly Munch is on itch.io</b><span>Play it there, leave a rating and tell us what you think ⭐</span></div>
+      <a class="btn" href="https://ananyayayay.itch.io/jelly-munch" target="_blank" rel="noopener">Rate it on itch.io ↗</a>
+    </div>
+  </div>
+</section>
 
 <section class="block then-now" id="then-now">
   <div class="wrap">
@@ -310,11 +321,6 @@ html.diwali .dwpill{display:inline-block;background:#FFD23F}
     <h2 class="reveal">Ek aur round? <span class="outline">Go on.</span></h2>
     <p class="reveal">Free to play. Takes 10 seconds to start. Perfect for a break, a boring lecture, or 1am.</p>
     <a class="btn reveal" href="/play"><span class="tri"></span>Play Jelly Munch</a>
-    <div class="itchcard reveal">
-      <div class="ic">🎮</div>
-      <div class="tx"><b>Jelly Munch is on itch.io</b><span>Play it there, leave a rating and tell us what you think ⭐</span></div>
-      <a class="btn" href="https://ananyayayay.itch.io/jelly-munch" target="_blank" rel="noopener">Rate it on itch.io ↗</a>
-    </div>
   </div>
 </section>
 
