@@ -856,7 +856,23 @@ function isFree(x,y){
 }
 // A cell is "roomy" if at least 2 of its 4 neighbours are open board (not edge, wall or portal):
 // fruit never lands in a dead-end pocket where the snake can only reach it by trapping itself.
+// Cells inside dead-end pockets (open on one side only, even after chaining) are pruned away,
+// so fruit never lands somewhere the snake can get in but not back out.
+function openCell(a,b){ return a>=0 && b>=0 && a<W && b<W && !g.walls.has(a+","+b) && !(g.portals && g.portals.some(p=>p[0]===a&&p[1]===b)); }
+function safeSet(){
+  if (g._safe) return g._safe;  // walls never change mid-level
+  const ok = new Set(), deg = {}, q = [];
+  for (let y=0;y<W;y++) for (let x=0;x<W;x++) if (openCell(x,y)) ok.add(x+","+y);
+  for (const k of ok) { const [x,y] = k.split(",").map(Number); let n = 0;
+    for (const [dx,dy] of Object.values(DIRS)) if (ok.has((x+dx)+","+(y+dy))) n++;
+    deg[k] = n; if (n <= 1) q.push(k); }
+  while (q.length) { const k = q.pop(); if (!ok.has(k)) continue; ok.delete(k);
+    const [x,y] = k.split(",").map(Number);
+    for (const [dx,dy] of Object.values(DIRS)) { const k2 = (x+dx)+","+(y+dy); if (ok.has(k2) && --deg[k2] <= 1) q.push(k2); } }
+  g._safe = ok; return ok;
+}
 function roomy(x,y){
+  if (!safeSet().has(x+","+y)) return false;
   let n = 0;
   for (const [dx,dy] of Object.values(DIRS)) { const a = x+dx, b = y+dy;
     if (a>=0 && b>=0 && a<W && b<W && !g.walls.has(a+","+b) && !(g.portals && g.portals.some(p=>p[0]===a&&p[1]===b))) n++; }
@@ -895,7 +911,7 @@ function step(){
     const opts = Math.abs(dx2) >= Math.abs(dy2) ? [[Math.sign(dx2),0],[0,Math.sign(dy2)]] : [[0,Math.sign(dy2)],[Math.sign(dx2),0]];
     for (const [a,b] of opts) { if (!a && !b) continue; const x = f.x+a, y = f.y+b;
       if (x===hd.x && y===hd.y) break;
-      if (isFree(x,y)) { f.fx=f.x; f.fy=f.y; f.x=x; f.y=y; f.hopT=0; break; } }
+      if (isFree(x,y) && roomy(x,y)) { f.fx=f.x; f.fy=f.y; f.x=x; f.y=y; f.hopT=0; break; } }
   }
   if (hitG) eat(g.gold, 2);
   if (hitF) eat(g.fruit, 1);
