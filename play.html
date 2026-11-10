@@ -850,9 +850,17 @@ function isFree(x,y){
   if (g.power && g.power.x===x && g.power.y===y) return false;
   return true;
 }
+// A cell is "roomy" if at least 2 of its 4 neighbours are open board (not edge, wall or portal):
+// fruit never lands in a dead-end pocket where the snake can only reach it by trapping itself.
+function roomy(x,y){
+  let n = 0;
+  for (const [dx,dy] of Object.values(DIRS)) { const a = x+dx, b = y+dy;
+    if (a>=0 && b>=0 && a<W && b<W && !g.walls.has(a+","+b) && !(g.portals && g.portals.some(p=>p[0]===a&&p[1]===b))) n++; }
+  return n >= 2;
+}
 function spawn(){
   const h = g.snake[0], c = [];
-  for (let y=0;y<W;y++) for (let x=0;x<W;x++) if (isFree(x,y) && Math.abs(x-h.x)+Math.abs(y-h.y) > 2) c.push([x,y]);
+  for (let y=0;y<W;y++) for (let x=0;x<W;x++) if (isFree(x,y) && roomy(x,y) && Math.abs(x-h.x)+Math.abs(y-h.y) > 2) c.push([x,y]);
   if (!c.length) return null;
   const [x,y] = c[Math.random()*c.length|0];
   return {x, y, fx:x, fy:y, hopT:1, type:FRUITS[Math.random()*FRUITS.length|0], born:g.clock, hopAt:g.t + (calm()?3.2:2.2)};
@@ -1311,7 +1319,7 @@ function loop(now){
     if (g === gg && !g.dead && !g.won) {
       if (g.fruit && g.L.moving && g.t >= g.fruit.hopAt) {
         const f = g.fruit, h = g.snake[0];
-        const opts = [[1,0],[-1,0],[0,1],[0,-1]].map(([a,b])=>[f.x+a,f.y+b]).filter(([x,y])=>isFree(x,y) && Math.abs(x-h.x)+Math.abs(y-h.y) > 1);
+        const opts = [[1,0],[-1,0],[0,1],[0,-1]].map(([a,b])=>[f.x+a,f.y+b]).filter(([x,y])=>isFree(x,y) && roomy(x,y) && Math.abs(x-h.x)+Math.abs(y-h.y) > 1);
         if (opts.length) { const [x,y] = opts[Math.random()*opts.length|0]; f.fx=f.x; f.fy=f.y; f.x=x; f.y=y; f.hopT=0; SFX.hop(); }
         f.hopAt = g.t + (calm()?3.2:2.2);
       }
