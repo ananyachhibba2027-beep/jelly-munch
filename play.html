@@ -522,9 +522,8 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
   <div class="panel">
     <div class="eyebrow">Jelly Munch Plus</div>
     <h2>Go Plus ✨</h2>
-    <p id="plusLead">Unlock the full game.</p>
+    <p id="plusLead">More lives, every skin, less waiting.</p>
     <ul class="perks">
-      <li><b>Endless levels forever</b> (level 21 and beyond)</li>
       <li><b>Every jelly skin</b>, including Rainbow</li>
       <li><b>7 max lives</b> that refill faster, plus 5 bonus lives</li>
       <li>One-time purchase, no subscription</li>
@@ -532,7 +531,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     <div class="pricebox">
       <div class="price"><s id="plusWas" hidden>₹149</s><b id="plusNow">₹149</b><span class="once">one-time</span></div>
       <div class="ebtag" id="plusTimer" hidden></div>
-      <div class="small" id="plusChai">Less than a cup of chai ☕ for endless levels forever. Includes 5 bonus lives and bigger, faster-refilling lives.</div>
+      <div class="small" id="plusChai">Less than a cup of chai ☕ for bigger, faster-refilling lives forever. Includes 5 bonus lives and every skin.</div>
     </div>
     <button class="btn gold" id="btnPlus">Unlock Plus · ₹149</button>
     <p class="small">One-time payment, secure checkout by Dodo Payments. Sign in first to keep Plus on every device.</p>
@@ -696,7 +695,7 @@ const SB_CDN = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/u
 let sb = null, authUser = null, syncTimer = 0;
 const STORE = "jellymunch.v1";
 let S = {sound:true, chill:false, stars:{}, best:{}, skin:"bubblegum", lifeBank:0, plus:false};
-const FREE_LEVELS = 20;  // levels 1–20 are free; 21+ need Jelly Munch Plus
+const FREE_LEVELS = Infinity;  // every level is free (11 Nov 2026). Plus = more lives, faster refills, all skins
 const isPaid = i => i >= FREE_LEVELS && !S.plus;
 const isUnlocked = i => i === 0 || (S.stars[i-1]||0) > 0;  // beat the previous level to open the next
 try { const s = JSON.parse(localStorage.getItem(STORE)); if (s) S = Object.assign(S, s); } catch(e) {}
@@ -1599,7 +1598,7 @@ function buildMap(){
   });
   const nx = nextEndless(), best = nx - LEVELS.length, locked = isPaid(nx), reached = isUnlocked(LEVELS.length);
   const row = document.createElement("div"); row.className = "world endless";
-  const sub = !reached ? "Clear Volcano Peak (3-3) to unlock. New layouts forever!" : S.plus ? "Plus unlocked: endless levels forever ✨" : locked ? `You've played all the free levels. Plus unlocks endless levels forever.` : "New layouts forever, a bit faster each time.";
+  const sub = !reached ? "Clear Volcano Peak (3-3) to unlock. New layouts forever!" : S.plus ? "New layouts forever, Plus lives on ✨" : locked ? `You've played all the free levels. Plus unlocks endless levels forever.` : "New layouts forever, a bit faster each time.";
   row.innerHTML = `<div class="wtext"><div class="wname">Endless levels</div><div class="wtwist">${best ? `Cleared ${best} so far. ` : ""}${sub}</div></div>`;
   const b = document.createElement("button"); b.className = "btn " + (locked ? "gold" : "alt"); b.id = "lvEndless";
   b.disabled = !reached;
@@ -1624,7 +1623,7 @@ function renderPrice(){
 }
 function showPlus(i){
   plusFor = i; state = "plus"; SFX.whoosh(); startEarlyBird();
-  $("#plusLead").textContent = i == null ? "Unlock the full game." : `You've reached level ${i+1}. The free levels are done. Keep going with Plus!`;
+  $("#plusLead").textContent = "More lives, every skin, less waiting.";
   renderPrice(); clearInterval(plusTick); plusTick = setInterval(() => { if (state !== "plus") { clearInterval(plusTick); return; } renderPrice(); }, 1000);
   screen("scrPlus");
 }
@@ -1678,7 +1677,7 @@ async function handlePaymentReturn(){
         if (j.cont) { S.resumeLevel = null; SFX.coin(); const ok = resumePaidRun(); toast(ok ? "+1 try! Your fruits are safe. Go go go 🐍" : "+1 life added ♥", 5000); renderLives(); return; }
         const resume = S.resumeLevel; S.resumeLevel = null; save();
         SFX.coin(); confettiBurst();
-        toast(j.plus ? "Plus unlocked! ✨ Endless levels are yours." : j.unlimMs ? "Unlimited lives for 2 hours ∞ Go wild!" : j.refill ? "Lives refilled ♥ Go get 'em!" : `+${j.lives} ${j.lives > 1 ? "lives" : "life"} added. Go get 'em!`, 5000);
+        toast(j.plus ? "Plus unlocked! ✨ 7 lives and every skin are yours." : j.unlimMs ? "Unlimited lives for 2 hours ∞ Go wild!" : j.refill ? "Lives refilled ♥ Go get 'em!" : `+${j.lives} ${j.lives > 1 ? "lives" : "life"} added. Go get 'em!`, 5000);
         renderLives();
         if (resume != null && isUnlocked(resume)) openLevel(resume); else if (j.plus) showMap();
         return;
