@@ -1,10 +1,1 @@
-{
-  "cleanUrls": true,
-  "redirects": [
-    {
-      "source": "/play/",
-      "destination": "/play",
-      "permanent": false
-    }
-  ]
-}
+{"cleanUrls": true, "redirects": [{"source": "/play/", "destination": "/play", "permanent": false}], "rewrites": [{"source": "/blog/:slug", "destination": "/blog-:slug"}]}
