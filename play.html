@@ -377,6 +377,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     <div class="acbox" id="acSignedIn" hidden>
       <div class="acuser"><span class="ok">✓</span><span id="acWho"></span></div>
       <p class="small" id="acSync">Your progress is synced across devices.</p>
+      <p class="small" id="acSameTip"></p>
       <button class="btn alt" id="acOut">Sign out</button>
       <p class="small">Signing out keeps your progress on this device too.</p>
     </div>
@@ -1514,9 +1515,19 @@ async function pullMerge(){
   } catch (e) { $("#acSync").textContent = "Signed in, but couldn't sync just now. We'll try again after your next level."; }
 }
 async function pushNow(){
-  if (!sb || !authUser) return;
-  try { const { error } = await sb.from("progress").upsert({user_id:authUser.id, data:progressSnapshot(), updated_at:new Date().toISOString()}); if (error) throw error; } catch (e) {}
+  if (!sb || !authUser) return false;
+  const up = () => sb.from("progress").upsert({user_id:authUser.id, data:progressSnapshot(), updated_at:new Date().toISOString()});
+  try {
+    await sb.auth.getSession();  // refreshes an expired login first
+    let { error } = await up();
+    if (error) { await sb.auth.refreshSession(); ({ error } = await up()); }
+    if (error) throw error;
+    $("#acSync").textContent = "Your progress is synced across devices."; $("#btnAccount").textContent = "✓ Signed in · progress synced";
+    return true;
+  } catch (e) { $("#acSync").textContent = "Couldn't sync just now. We'll try again after your next level."; $("#btnAccount").textContent = "⚠ Signed in · not synced yet"; return false; }
 }
+// Tabs left open for days stop refreshing the login: re-check and re-sync whenever the game comes back on screen.
+document.addEventListener("visibilitychange", () => { if (sb && authUser && document.visibilityState === "visible") pullMerge(); });
 function cloudSave(){ clearTimeout(syncTimer); syncTimer = setTimeout(pushNow, 1500); }
 function renderAccount(){
   const who = authUser ? (authUser.email || "your account") : "";
@@ -1525,6 +1536,7 @@ function renderAccount(){
   $("#acTitle").textContent = authUser ? "You're signed in" : "Save your progress";
   $("#acLead").hidden = !!authUser;
   $("#acWho").textContent = who;
+  const tip = $("#acSameTip"); if (tip) tip.textContent = authUser ? `Use this same login (${who}) on every device to get your progress there.` : "";
   $("#acGoogle").hidden = !SUPABASE.google; $("#acOr").hidden = !SUPABASE.google;
 }
 function showAccount(){
@@ -1533,6 +1545,11 @@ function showAccount(){
   $("#acForm").hidden = !lbOn();
 }
 const redirectUrl = () => location.origin + location.pathname;
+// In-app browsers (Instagram, Facebook, WhatsApp on Android, etc.) — Google blocks OAuth there.
+const IN_APP = /FBAN|FBAV|Instagram|WhatsApp|Snapchat|LinkedInApp|Line\/|; wv\)/i.test(navigator.userAgent || "");
+// Show sign-in errors that come back in the URL (expired link, cancelled Google screen, ...)
+(function(){ const q = new URLSearchParams(location.search + "&" + location.hash.replace(/^#/, "")), err = q.get("error_description");
+  if (err) setTimeout(() => toast(/expired|invalid/i.test(err) ? "That sign-in link expired. Ask for a new one from Save your progress." : "Sign-in didn't finish: " + err, 6000), 1200); })();
 function showSkins(){
   if (state !== "skins") SFX.whoosh();
   state = "skins"; const total = starTotal();
@@ -1955,8 +1972,11 @@ $("#wnWish").addEventListener("click", async e => {
 });
 $("#acGoogle").addEventListener("click", async () => {
   SFX.click(); if (!sb) { $("#acMsg").textContent = "Couldn't reach the sign-in service. Check your connection and try again."; return; }
-  const { error } = await sb.auth.signInWithOAuth({provider:"google", options:{redirectTo: redirectUrl()}});
-  if (error) $("#acMsg").textContent = "Google sign-in didn't start. Try the email link instead.";
+  if (IN_APP) { $("#acMsg").innerHTML = "Google doesn't allow sign-in inside Instagram, WhatsApp or Facebook. Tap <b>⋯</b> (top right) → <b>Open in browser</b>, then sign in there."; return; }
+  $("#acMsg").textContent = "Opening Google…";
+  const { data, error } = await sb.auth.signInWithOAuth({provider:"google", options:{redirectTo: redirectUrl(), skipBrowserRedirect:true}});
+  if (error || !data || !data.url) { $("#acMsg").textContent = "Google sign-in didn't start. Try again in a minute."; return; }
+  try { (window.top || window).location.href = data.url; } catch (e) { location.href = data.url; }  // break out of the homepage iframe: Google refuses to load inside frames
 });
 $("#acForm").addEventListener("submit", async e => {
   e.preventDefault(); SFX.click();
