@@ -607,7 +607,7 @@ function dailyLevel(){
   if (genCache.daily && genCache.daily.day === day) return genCache.daily;
   const fr = DIWALI ? "sweets" : "fruits";
   const T = [
-    {name:"Speed Run", w:0, goal:12, step:120, timeLimit:45, golden:true, mission:`Eat 12 ${fr} in 45 seconds`, tip:"The clock counts down. Keep moving!"},
+    {name:"Speed Run", w:0, goal:12, step:120, timeLimit:TOUCH ? 55 : 45, golden:true, mission:`Eat 12 ${fr} in ${TOUCH ? 55 : 45} seconds`, tip:"The clock counts down. Keep moving!"},
     {name:"Golden Hunter", w:1, goal:3, step:118, golden:true, goldRate:.6, goldOnly:true, portals:[[3,3],[16,16]], mission:"Eat 3 golden fruits", tip:"Only golden fruit counts. Eating the normal ones makes gold appear."},
     {name:"Fudge Run", w:2, goal:15, step:112, walls:MAZE, golden:true, mission:`Eat 15 ${fr} in the fudge maze`, tip:"Find the gaps and keep your tail out of the way."},
     {name:"Hop Chase", w:1, goal:14, step:116, moving:true, portals:[[3,16],[16,3]], golden:true, mission:`Catch 14 hopping ${fr}`, tip:"They hop every few seconds. Cut them off!"},
@@ -725,6 +725,10 @@ syncLives();
 const save = () => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch(e) {} if (authUser) cloudSave(); };
 const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const calm = () => S.chill || RM;
+// Phones: a bit slower, because swipes are slower than arrow keys.
+const TOUCH = !!(window.matchMedia && matchMedia("(pointer:coarse)").matches);
+const SPEED = TOUCH ? 1.22 : 1;
+const baseStep = L => Math.round(L.step * SPEED);
 // Diwali week: on until the end of 11 Nov 2026 (IST). Add ?diwali=1 to preview it any time.
 const DIWALI = /[?&]diwali=1/.test(location.search) || Date.now() < Date.UTC(2026, 10, 11, 18, 30);
 const DIYA_GOAL = 3;
@@ -831,7 +835,7 @@ function newGame(i, demo){
   const L = getLevel(i), [sx,sy,sd] = L.start || [5,10,"R"], [dx,dy] = DIRS[sd];
   const snake = [0,1,2].map(k => ({x:sx-dx*k, y:sy-dy*k}));
   g = {i, L, demo:!!demo, snake, prev:snake.map(p=>({...p})), dir:sd, lastDir:sd, queue:[], eaten:0, combo:0, lastEat:-9,
-       stepMs:L.step + (S.chill?40:0), acc:0, t:0, clock:g?g.clock:0, particles:[], floats:[], dead:false, won:false, deadAt:0, shake:0,
+       stepMs:baseStep(L) + (S.chill?40:0), acc:0, t:0, clock:g?g.clock:0, particles:[], floats:[], dead:false, won:false, deadAt:0, shake:0,
        gold:null, fruit:null, power:null, ghostUntil:-1, slowUntil:-1, magnetUntil:-1, doubleUntil:-1, shield:false, magTick:0, lives:3, walls:new Set((L.walls||[]).map(c=>c[0]+","+c[1])), wallList:L.walls||[], portals:L.portals||null};
   g.fruit = spawn();
   updateHud();
@@ -936,7 +940,7 @@ function eat(f, val){
   }
   if (g.combo >= 2) { floatText(f.x, f.y-1.2, MSG.combo(g.combo), "#3DE0B5", 1); if (!calm()) { g.shake = Math.min(6, 2+g.combo); confetti(f.x, f.y, 12); } if (g.combo === 5 || g.combo === 8) SFX.bigCombo(); }
   else if (f.type !== "gold" && Math.random() < .35) floatText(f.x, f.y-1.2, pick(MSG.eat), "#FFFFFF", 1);
-  if (!S.chill) g.stepMs = Math.max(g.L.step - 18, g.L.step - 3*Math.floor(g.eaten/4));
+  if (!S.chill) g.stepMs = Math.max(baseStep(g.L) - 18, baseStep(g.L) - 3*Math.floor(g.eaten/4));
   updateHud();
   if (!g.demo && g.eaten >= g.L.goal) win();
 }
@@ -986,7 +990,7 @@ function win(){
   if (DIWALI && !calm()) for (let k=0;k<5;k++) setTimeout(() => { if (g && state === "won") { burst(3+Math.random()*14, 2+Math.random()*9, ["#FFD23F","#FF5FA2","#FF8C1A","#FFFFFF","#7CF5D0"][k], 34); tone(300+k*90, .25, {type:"triangle", vol:.08, slide:900}); } }, 120 + k*170);
   setTimeout(() => { if (state === "won") showWin(); }, 1000);
 }
-const parTime = L => L.goal * 2.4 * (S.chill ? 1.35 : 1);
+const parTime = L => L.goal * 2.4 * (S.chill ? 1.35 : 1) * (TOUCH ? 1.15 : 1);
 const fmt = t => Math.floor(t/60) + ":" + String(Math.floor(t%60)).padStart(2,"0");
 
 function aiTurn(){
@@ -1848,26 +1852,34 @@ addEventListener("pointerdown", audioOn, {capture:true});
 
 let sw = null;
 const appEl = $("#app");
+const swipeDir = (dx, dy) => Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "R" : "L") : (dy > 0 ? "D" : "U");
 appEl.addEventListener("pointerdown", e => {
-  sw = {x:e.clientX, y:e.clientY};
+  if (e.target.closest && e.target.closest("#dpad")) return;   // pad taps aren't swipes
+  sw = {x:e.clientX, y:e.clientY, fired:false};
   if (state === "count") skipCountdown();
   else if (state === "dying") afterBump();
 });
 appEl.addEventListener("pointermove", e => {
   if (!sw) return;
   const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
-  if (Math.hypot(dx,dy) < 22) return;
-  queueDir(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "R" : "L") : (dy > 0 ? "D" : "U"));
-  sw = {x:e.clientX, y:e.clientY};
+  if (Math.hypot(dx,dy) < 14) return;          // short, quick swipes count now (was 22px)
+  queueDir(swipeDir(dx, dy));
+  sw = {x:e.clientX, y:e.clientY, fired:true};
 });
-addEventListener("pointerup", () => { sw = null; });
+addEventListener("pointerup", e => {
+  // a fast flick can end before enough move events arrive: read it from start → end
+  if (sw && !sw.fired) { const dx = e.clientX - sw.x, dy = e.clientY - sw.y; if (Math.hypot(dx,dy) >= 8) queueDir(swipeDir(dx, dy)); }
+  sw = null;
+});
+// stop the page scrolling / pull-to-refresh / back-swipe while playing
+document.addEventListener("touchmove", e => { if (state === "play" || state === "count" || state === "dying") e.preventDefault(); }, {passive:false});
 addEventListener("pointercancel", () => { sw = null; });
 document.querySelectorAll("#dpad button").forEach(b => b.addEventListener("pointerdown", e => { e.preventDefault(); queueDir(b.dataset.d); }));
 document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
 
 document.querySelectorAll(".tog").forEach(b => b.addEventListener("click", () => {
   S[b.dataset.k] = !S[b.dataset.k]; save(); syncToggles(); SFX.click();
-  if (b.dataset.k === "chill" && g && !g.demo) g.stepMs = g.L.step + (S.chill ? 40 : 0);
+  if (b.dataset.k === "chill" && g && !g.demo) g.stepMs = baseStep(g.L) + (S.chill ? 40 : 0);
 }));
 $("#hudSound").addEventListener("click", () => { S.sound = !S.sound; save(); syncToggles(); SFX.click(); });
 $("#hudPause").addEventListener("click", () => { SFX.click(); state === "play" ? pause() : resume(); });
