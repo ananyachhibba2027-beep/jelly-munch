@@ -168,6 +168,18 @@ section.block{padding:100px 0;position:relative}
 .lb-row .sc{color:var(--muted);font-size:15px}
 .lb-row .sc b{color:#E8A800}
 .lb-empty{color:var(--muted);padding:14px 4px}
+.revtop{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:28px}
+.revsum{display:flex;align-items:center;gap:18px;background:#fff;border:4px solid var(--ink);border-radius:26px;box-shadow:0 7px 0 var(--ink);padding:14px 24px}
+.revsum .avg{font:400 64px/1 var(--display);color:var(--pink)}
+.rstars{color:#FFC93C;-webkit-text-stroke:1.5px var(--ink);letter-spacing:2px;font-size:24px;line-height:1}
+.rstars .off{color:#E4DCEF}
+.revsum small{display:block;color:var(--muted);font-weight:700;font-size:15px;margin-top:4px}
+.revgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
+.revcard{background:#fff;border:4px solid var(--ink);border-radius:24px;box-shadow:0 6px 0 var(--ink);padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.revcard .rstars{font-size:20px}
+.revcard p{margin:0;font-weight:600;font-size:17px;line-height:1.4}
+.revcard .who{margin-top:auto;font-weight:800;font-size:15px;color:var(--muted)}
+.revempty{background:#fff;border:4px dashed var(--ink);border-radius:24px;padding:28px;text-align:center;font-weight:700;color:var(--muted)}
 @media (max-width:860px){ .lb{grid-template-columns:1fr} }
 
 /* final cta */
@@ -318,6 +330,20 @@ html.diwali .dwpill{display:inline-block;background:#FFD23F}
       <a class="btn reveal" href="/play"><span class="tri"></span>Claim your spot</a>
     </div>
     <div class="lb-card reveal"><h3>🏆 Top munchers</h3><div id="lbList"><div class="lb-empty">Loading the leaderboard…</div></div></div>
+  </div>
+</section>
+
+<section class="block" id="reviews">
+  <div class="wrap">
+    <div class="revtop">
+      <div>
+        <div class="eyebrow reveal">Player reviews</div>
+        <h2 class="reveal" style="margin-bottom:0">What munchers are saying</h2>
+      </div>
+      <div class="revsum reveal" id="revSum" hidden><div class="avg" id="revAvg">5.0</div><div><div class="rstars" id="revStars"></div><small id="revCount"></small></div></div>
+    </div>
+    <div class="revgrid" id="revList"><div class="revempty">Loading reviews…</div></div>
+    <p class="reveal" style="margin-top:30px"><a class="btn" href="/play?review=1">⭐ Write a review</a></p>
   </div>
 </section>
 
@@ -511,6 +537,26 @@ fetch(SB + "/rest/v1/leaderboard?select=nickname,stars,furthest&order=stars.desc
     el.innerHTML = rows.map((r, i) => `<div class="lb-row"><span class="rk">${i+1}</span><span class="nm">${esc(r.nickname)}</span><span class="sc"><b>★</b> ${r.stars} · Lv ${r.furthest}</span></div>`).join("");
   })
   .catch(() => { document.getElementById("lbList").innerHTML = `<div class="lb-empty">The leaderboard is napping. Play a round and check back!</div>`; });
+
+/* ---------- player reviews ---------- */
+const starsHtml = n => [1,2,3,4,5].map(k => k <= Math.round(n) ? "★" : `<span class="off">★</span>`).join("");
+const rude = /\b(f+u+c+k+|sh[i1]t|b[i1]tch|c+u+n+t|asshole|bastard|d[i1]ck|madarchod|behenchod|bhenchod|chutiya|bhosdi|gaand|randi)/i;
+const ago = d => { const s = (Date.now() - new Date(d)) / 1000; return s < 3600 ? "just now" : s < 86400 ? Math.floor(s/3600) + "h ago" : s < 86400*30 ? Math.floor(s/86400) + "d ago" : new Date(d).toLocaleDateString("en-IN", {day:"numeric", month:"short"}); };
+fetch(SB + "/rest/v1/reviews?select=rating,name,body,created_at&order=created_at.desc&limit=1000", {headers:{apikey:KEY, Authorization:"Bearer " + KEY}})
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(rows => {
+    const list = document.getElementById("revList");
+    if (!rows.length) { list.innerHTML = `<div class="revempty">No reviews yet. Be the first to rate Jelly Munch ⭐</div>`; return; }
+    const avg = rows.reduce((a, r) => a + r.rating, 0) / rows.length;
+    document.getElementById("revAvg").textContent = avg.toFixed(1);
+    document.getElementById("revStars").innerHTML = starsHtml(avg);
+    document.getElementById("revCount").textContent = `from ${rows.length} rating${rows.length === 1 ? "" : "s"}`;
+    document.getElementById("revSum").hidden = false;
+    const shown = rows.filter(r => r.body && r.body.trim().length > 2 && !rude.test(r.body + " " + (r.name || ""))).slice(0, 6);
+    list.innerHTML = shown.length ? shown.map(r => `<div class="revcard"><div class="rstars">${starsHtml(r.rating)}</div><p>“${esc(r.body.trim())}”</p><div class="who">${esc(r.name || "A happy muncher")} · ${ago(r.created_at)}</div></div>`).join("")
+      : `<div class="revempty">${rows.length} player${rows.length === 1 ? " has" : "s have"} rated it so far. Add a few words to yours ✍️</div>`;
+  })
+  .catch(() => { document.getElementById("revList").innerHTML = `<div class="revempty">Reviews are loading slowly. Play a round and leave yours ⭐</div>`; });
 })();
 </script>
 </body>
