@@ -233,6 +233,13 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
 .lbs .st{color:#F5B800;-webkit-text-stroke:1px var(--ink)}
 .lbchip{background:var(--lemon)}
 .acctlink{font-size:15px}
+.rtstars{display:flex;gap:6px;justify-content:center}
+.rtstars button{background:none;border:0;cursor:pointer;font-size:46px;line-height:1;padding:0 2px;color:#E4DCEF;-webkit-text-stroke:2.5px var(--ink);transition:transform .12s,color .12s}
+.rtstars button.on{color:#FFC93C}.rtstars button:hover{transform:scale(1.12)}.rtstars button:active{transform:scale(.92)}
+.rtform{width:100%;display:flex;flex-direction:column;gap:10px}
+.rtform textarea,.rtform input{width:100%;box-sizing:border-box;font:700 16px var(--body);color:var(--ink);border:3px solid var(--ink);border-radius:14px;padding:9px 12px;background:#fff;resize:none}
+.rtform .btn:disabled{opacity:.5;cursor:default}
+.ratechip{background:#FFF6C9;cursor:pointer;font:800 14px var(--body);color:var(--ink)}
 .acbox{width:100%;display:flex;flex-direction:column;gap:10px;align-items:stretch}
 .acform{display:flex;flex-direction:column;gap:8px;font-weight:700;text-align:left}
 .acform input{flex:1;min-width:0;font:700 17px var(--body);color:var(--ink);border:3px solid var(--ink);border-radius:14px;padding:8px 12px;background:#fff}
@@ -359,6 +366,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
       <button class="tog" role="switch" data-k="chill" aria-checked="false">Chill mode<span class="sw"></span></button>
     </div>
     <button class="link acctlink" id="btnAccount">💾 Sign in to save your progress</button>
+    <button class="link acctlink" id="btnRate">⭐ Rate &amp; review Jelly Munch</button>
     <p class="hint">Arrow keys or WASD on a keyboard. Swipe or use the pad on a phone.</p>
     <p class="hint legal"><a href="/privacy.html">Privacy policy</a></p>
   </div>
@@ -545,6 +553,22 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
 </section>
 
 <!-- Win -->
+<section class="screen" id="scrRate" hidden>
+  <div class="panel">
+    <div class="eyebrow" id="rtEye">Quick favour 🙏</div>
+    <h2 id="rtTitle">Enjoying Jelly Munch?</h2>
+    <p class="hint" id="rtSub">Tap the stars. A line or two really helps me make it better.</p>
+    <div class="rtstars" id="rtStars" role="radiogroup" aria-label="Your rating"><button type="button" data-v="1" aria-label="1 star">★</button><button type="button" data-v="2" aria-label="2 stars">★</button><button type="button" data-v="3" aria-label="3 stars">★</button><button type="button" data-v="4" aria-label="4 stars">★</button><button type="button" data-v="5" aria-label="5 stars">★</button></div>
+    <form class="rtform" id="rtForm">
+      <textarea id="rtBody" maxlength="300" rows="3" placeholder="What did you love? What should I fix? (optional)"></textarea>
+      <input id="rtName" maxlength="30" autocomplete="off" placeholder="Your name (optional)">
+      <button class="btn" id="rtSend" type="submit" disabled>Send review</button>
+      <div class="small" id="rtErr"></div>
+    </form>
+    <button class="link" id="rtLater">Maybe later</button>
+  </div>
+</section>
+
 <section class="screen" id="scrWin" hidden>
   <div class="panel">
     <div class="eyebrow" id="wnEyebrow">Level clear</div>
@@ -559,6 +583,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     <span class="chip reward" id="wnReward" hidden></span>
     <span class="chip lbchip" id="wnRank" hidden></span>
     <button class="chip savechip" id="wnSave" hidden>💾 Sign in to keep your progress on every device →</button>
+    <button class="chip ratechip" id="wnRate" hidden>⭐ Enjoying it? Rate Jelly Munch →</button>
     <p class="hint" id="wnHint"></p>
     <button class="btn alt" id="wnWish" hidden>Send Diwali wishes 🪔</button>
     <button class="btn" id="btnNext">Next level</button>
@@ -1396,7 +1421,7 @@ function syncToggles(){
 }
 function screen(id){
   document.querySelectorAll(".screen").forEach(s => s.hidden = s.id !== id);
-  $("#app").classList.toggle("menu", state==="home" || state==="map" || state==="skins" || state==="lb" || state==="account");
+  $("#app").classList.toggle("menu", state==="home" || state==="map" || state==="skins" || state==="lb" || state==="account" || state==="rate");
 }
 function starTotal(){ return Object.values(S.stars).reduce((a,b)=>a+b,0); }
 
@@ -1421,7 +1446,7 @@ addEventListener("pointermove", e => { if (state !== "home") return; const m = $
 function showHome(){
   state = "home"; applyWorld(0); newGame(0, true);
   $("#starTotal").textContent = `${starTotal()} stars collected`;
-  screen("scrHome"); renderLives(); renderGift(); renderDaily();
+  screen("scrHome"); renderLives(); renderGift(); renderDaily(); $("#btnRate").hidden = !!S.rated;
   if (DIWALI) {
     $("#dwTag").hidden = false; $("#mascotSay").textContent = "Happy Diwali! 🪔";
     const fx = document.querySelectorAll(".homefx span"); ["🪔","✨","🍬","🎆","🪔","🍬","✨","🎇"].forEach((e,i) => { if (fx[i]) fx[i].textContent = e; });
@@ -1849,6 +1874,7 @@ function showWin(){
   $("#wnBest").hidden = !g.newBest;
   lbAfterWin();
   $("#wnSave").hidden = !!authUser || !(g.i === 2 || g.i === 8 || g.i === 14);
+  $("#wnRate").hidden = S.rated || cleared() < 3 || !$("#wnSave").hidden;
   const rw = $("#wnReward");
   rw.hidden = !g.newSkins.length;
   if (g.newSkins.length) rw.textContent = `New skin unlocked: ${g.newSkins.map(k=>k.name).join(", ")}! Pick it from Jelly skins on Home.`;
@@ -2075,13 +2101,62 @@ document.querySelectorAll(".pack[data-item]").forEach(b => b.addEventListener("c
 $("#btnClaim").addEventListener("click", () => { SFX.click(); claimLife(); });
 $("#adCancel").addEventListener("click", () => { SFX.click(); clearTimeout(adTimer); adMode === "life" ? showOutOfLives(adFor) : showFail(); });
 $("#flMap").addEventListener("click", () => { SFX.click(); showMap(); });
-$("#btnNext").addEventListener("click", () => { SFX.click(); g.plusPitch ? showPlus(g.i+1) : openLevel(g.i+1); });
+$("#btnNext").addEventListener("click", () => { SFX.click();
+  const go = () => g.plusPitch ? showPlus(g.i+1) : openLevel(g.i+1);
+  // ask once, after the 3rd level they clear
+  if (!S.rated && !S.rateAsked && cleared() >= 3) { S.rateAsked = true; save(); return showRate(go); }
+  go(); });
+
+/* ---------- ratings & reviews ---------- */
+function cleared(){ return Object.values(S.stars).filter(v => v > 0).length; }
+let rateNext = null, rateVal = 0;
+function paintStars(v){ document.querySelectorAll("#rtStars button").forEach(b => b.classList.toggle("on", +b.dataset.v <= v)); }
+function showRate(next){
+  rateNext = next || null; rateVal = 0; paintStars(0); state = "rate";
+  $("#rtEye").textContent = "Quick favour 🙏"; $("#rtTitle").textContent = "Enjoying Jelly Munch?";
+  $("#rtSub").textContent = "Tap the stars. A line or two really helps me make it better.";
+  $("#rtForm").hidden = false; $("#rtStars").hidden = false; $("#rtSend").disabled = true; $("#rtErr").textContent = "";
+  $("#rtLater").textContent = next ? "Maybe later" : "Back to home";
+  screen("scrRate");
+}
+function leaveRate(){ const n = rateNext; rateNext = null; n ? n() : showHome(); }
+document.querySelectorAll("#rtStars button").forEach(b => {
+  b.addEventListener("click", () => { rateVal = +b.dataset.v; paintStars(rateVal); $("#rtSend").disabled = false; SFX.click();
+    $("#rtSub").textContent = ["", "Oh no 🥲 Tell me what went wrong?", "Hmm, what would make it better?", "Thanks! What would make it a 5?", "Yay! What did you like most?", "You're the best 💖 What did you love?"][rateVal]; });
+  b.addEventListener("mouseenter", () => paintStars(+b.dataset.v));
+  b.addEventListener("mouseleave", () => paintStars(rateVal));
+});
+$("#rtForm").addEventListener("submit", async e => {
+  e.preventDefault(); if (!rateVal) return;
+  const btn = $("#rtSend"); btn.disabled = true; btn.textContent = "Sending…"; $("#rtErr").textContent = "";
+  const row = { rating: rateVal, name: $("#rtName").value.trim().slice(0,30) || null, body: $("#rtBody").value.trim().slice(0,300) || null,
+    level: cleared(), source: /ref=itch/.test(location.search) || window.top !== window ? "itch" : "web" };
+  try {
+    const res = await fetch(SUPABASE.url + "/rest/v1/reviews", { method: "POST",
+      headers: { apikey: SUPABASE.key, Authorization: "Bearer " + SUPABASE.key, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify(row) });
+    if (!res.ok) throw new Error(res.status);
+    S.rated = rateVal; save(); SFX.star(2);
+    $("#rtEye").textContent = "Review sent"; $("#rtTitle").textContent = "Thank you! 💖";
+    $("#rtSub").textContent = rateVal >= 4 ? "That made my day. Go munch some more!" : "Thanks for being honest. I'll work on it!";
+    $("#rtForm").hidden = true; $("#rtStars").hidden = true; $("#rtLater").textContent = rateNext ? "Next level →" : "Back to home";
+    $("#btnRate").hidden = true; if (typeof posthog !== "undefined" && posthog.capture) posthog.capture("review_sent", { rating: rateVal });
+  } catch (err) {
+    $("#rtErr").textContent = "Couldn't send that. Check your internet and try again?";
+  }
+  btn.textContent = "Send review"; btn.disabled = false;
+});
+$("#rtLater").addEventListener("click", () => { SFX.click(); leaveRate(); });
+$("#btnRate").addEventListener("click", () => { SFX.click(); showRate(null); });
+$("#wnRate").addEventListener("click", () => { SFX.click(); S.rateAsked = true; save();
+  showRate(() => g.plusPitch ? showPlus(g.i+1) : openLevel(g.i+1)); });
 $("#wnReplay").addEventListener("click", () => { SFX.click(); retry(g.i); });
 $("#wnMap").addEventListener("click", () => { SFX.click(); showMap(); });
 
 /* ---------- boot ---------- */
 if (/netlify\.app$/i.test(location.hostname)) document.documentElement.classList.add("hosted");
 fit(); syncToggles(); showHome(); renderAccount(); initAuth(); handlePaymentReturn();
+if (/[?&]review=1/.test(location.search)) showRate(null);
 requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); });
 })();
 </script>
