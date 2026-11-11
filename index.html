@@ -182,6 +182,8 @@ section.block{padding:100px 0;position:relative}
 .itchcard .btn{background:linear-gradient(#FF8A8A,#FA5C5C 55%,#D93A3A);color:#fff;font-size:20px;padding:10px 22px;flex:none;box-shadow:0 5px 0 var(--ink)}
 @media (max-width:640px){.itchcard{flex-direction:column;text-align:center}}
 .itchband{padding:34px 0;background:linear-gradient(180deg,#FFF2F8,#FFF8F1)}
+.itchcard+.itchcard{margin-top:18px}
+.phbadge{flex:none;line-height:0;transition:transform .15s}.phbadge:hover{transform:translateY(-2px)}.phbadge img{display:block;max-width:100%;height:auto}
 .floaty{position:absolute;font-size:44px;animation:float 6s ease-in-out infinite;pointer-events:none}
 @keyframes float{50%{transform:translateY(-22px) rotate(12deg)}}
 
@@ -238,6 +240,11 @@ html.diwali .dwpill{display:inline-block;background:#FFD23F}
 
 <section class="itchband">
   <div class="wrap">
+    <div class="itchcard ph reveal">
+      <div class="ic">🚀</div>
+      <div class="tx"><b>We're live on Product Hunt!</b><span>Check it out and tell us what you think 🙌</span></div>
+      <a class="phbadge" href="https://www.producthunt.com/products/jelly-munch?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-jelly-munch" target="_blank" rel="noopener noreferrer"><img alt="Jelly Munch - The game you grew up with, now glowed up! | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1311536&amp;theme=light&amp;t=1794389067948"></a>
+    </div>
     <div class="itchcard reveal">
       <div class="ic">🎮</div>
       <div class="tx"><b>Jelly Munch is on itch.io</b><span>Play it there, leave a rating and tell us what you think ⭐</span></div>
