@@ -136,7 +136,14 @@ body{background:var(--bg1);color:var(--ink);font-family:var(--body);font-size:16
   #dpad button{border-radius:24px;border-width:4px;box-shadow:0 6px 0 var(--ink);-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
   #dpad button:active,#dpad button.hit{transform:translateY(4px);box-shadow:0 2px 0 var(--ink);filter:brightness(1.08)}
   #dpad svg{width:38px;height:38px}
+  /* swipe-only on phones: the arrow pad is gone */
+  #dpad{display:none !important}
+  #stage{place-items:center}
+  #app #swipeHint{display:block}
 }
+#swipeHint{display:none;flex:none;font-weight:800;font-size:15px;color:var(--muted);padding:6px 14px 4px;transition:opacity .6s}
+#swipeHint.gone{opacity:0}
+.menu #swipeHint{visibility:hidden}
 
 /* Screens */
 .screen{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:16px;overflow:auto;background:rgba(43,27,77,.28);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
@@ -339,6 +346,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     <div id="frame"><canvas id="cv" aria-label="Game board"></canvas><div id="count" hidden></div></div>
   </main>
 
+  <div id="swipeHint" aria-hidden="true">👆 Swipe anywhere to turn</div>
   <div id="dpad" aria-label="Direction pad">
     <button data-d="U" aria-label="Up"><svg viewBox="0 0 24 24"><path d="M12 5l7 9H5z" fill="currentColor" stroke="#2B1B4D" stroke-width="2" stroke-linejoin="round"/></svg></button>
     <button data-d="L" aria-label="Left"><svg viewBox="0 0 24 24"><path d="M5 12l9-7v14z" fill="currentColor" stroke="#2B1B4D" stroke-width="2" stroke-linejoin="round"/></svg></button>
@@ -1930,32 +1938,51 @@ addEventListener("keydown", e => {
 }, {passive:false});
 addEventListener("pointerdown", audioOn, {capture:true});
 
-let sw = null;
+let sw = null, swipes = 0;
 const appEl = $("#app");
 const swipeDir = (dx, dy) => Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "R" : "L") : (dy > 0 ? "D" : "U");
-const clearAxis = (dx, dy) => Math.max(Math.abs(dx), Math.abs(dy)) >= 1.4 * Math.min(Math.abs(dx), Math.abs(dy));
-appEl.addEventListener("pointerdown", e => {
-  if (e.target.closest && e.target.closest("#dpad")) return;   // pad taps aren't swipes
-  sw = {x:e.clientX, y:e.clientY, fired:false, t:performance.now()};
+const SWIPE_MIN = 12, SWIPE_NEXT = 16;   // px of travel before a swipe counts (first one / chained turns)
+const notGameTap = t => t && t.closest && t.closest("#dpad, #hud, button, a, input, textarea");
+function swStart(x, y, target){
+  if (notGameTap(target)) return false;
+  sw = {ax:x, ay:y, lx:x, ly:y, fired:false};
   if (state === "count") skipCountdown();
   else if (state === "dying") afterBump();
-});
-appEl.addEventListener("pointermove", e => {
+  return true;
+}
+function swMove(x, y){
   if (!sw) return;
-  const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
-  // finger wobble at the start of a swipe used to fire the wrong way (swipe right → snake went left)
-  if (Math.hypot(dx,dy) < (sw.fired ? 30 : 20) || !clearAxis(dx, dy)) return;
-  queueDir(swipeDir(dx, dy));
-  sw = {x:e.clientX, y:e.clientY, fired:true, t:performance.now()};
-});
-addEventListener("pointerup", e => {
-  // a fast flick can end before enough move events arrive: read it from start → end
-  if (sw && !sw.fired) { const dx = e.clientX - sw.x, dy = e.clientY - sw.y; if (Math.hypot(dx,dy) >= 10) queueDir(swipeDir(dx, dy)); }
+  // if the finger turned back (the little wind-up wiggle), start measuring again from the turning point
+  const mx = x - sw.lx, my = y - sw.ly, ax = x - sw.ax, ay = y - sw.ay;
+  if (mx*ax + my*ay < 0) { sw.ax = sw.lx; sw.ay = sw.ly; }
+  sw.lx = x; sw.ly = y;
+  const dx = x - sw.ax, dy = y - sw.ay;
+  if (Math.hypot(dx, dy) < (sw.fired ? SWIPE_NEXT : SWIPE_MIN)) return;
+  // diagonal-ish? go with whichever way is stronger, unless it's a dead-even 45°
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 1.15 * Math.min(Math.abs(dx), Math.abs(dy))) return;
+  fireSwipe(swipeDir(dx, dy));
+  sw.ax = x; sw.ay = y; sw.fired = true;
+}
+function swEnd(x, y){
+  if (sw && !sw.fired) { const dx = x - sw.ax, dy = y - sw.ay; if (Math.hypot(dx, dy) >= 8) fireSwipe(swipeDir(dx, dy)); }
   sw = null;
-});
+}
+function fireSwipe(d){
+  queueDir(d);
+  if (++swipes === 6) { const h = $("#swipeHint"); if (h) h.classList.add("gone"); }
+}
+// phones: raw touch events (they don't get cancelled mid-swipe like pointer events can on iOS)
+appEl.addEventListener("touchstart", e => { const t = e.changedTouches[0]; swStart(t.clientX, t.clientY, e.target); }, {passive:true});
+appEl.addEventListener("touchmove", e => { const t = e.changedTouches[0]; swMove(t.clientX, t.clientY); }, {passive:true});
+appEl.addEventListener("touchend", e => { const t = e.changedTouches[0]; swEnd(t.clientX, t.clientY); });
+appEl.addEventListener("touchcancel", () => { sw = null; });
+// mouse / pen drags on computers
+appEl.addEventListener("pointerdown", e => { if (e.pointerType !== "touch") swStart(e.clientX, e.clientY, e.target); });
+appEl.addEventListener("pointermove", e => { if (e.pointerType !== "touch") swMove(e.clientX, e.clientY); });
+addEventListener("pointerup", e => { if (e.pointerType !== "touch") swEnd(e.clientX, e.clientY); });
 // stop the page scrolling / pull-to-refresh / back-swipe while playing
 document.addEventListener("touchmove", e => { if (state === "play" || state === "count" || state === "dying") e.preventDefault(); }, {passive:false});
-addEventListener("pointercancel", () => { sw = null; });
+addEventListener("pointercancel", e => { if (e.pointerType !== "touch") sw = null; });
 document.querySelectorAll("#dpad button").forEach(b => {
   b.addEventListener("pointerdown", e => { e.preventDefault(); queueDir(b.dataset.d);
     b.classList.add("hit"); setTimeout(() => b.classList.remove("hit"), 120);
