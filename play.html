@@ -127,12 +127,13 @@ body{background:var(--bg1);color:var(--ink);font-family:var(--body);font-size:16
 #dpad [data-d="R"]{grid-column:3;grid-row:2}
 /* ---------- phones: bigger board, big thumb-sized controls ---------- */
 @media (pointer:coarse){
+  #stage{place-items:start center}
   #app{padding-inline:6px;padding-top:max(8px,env(safe-area-inset-top));padding-bottom:max(12px,env(safe-area-inset-bottom));gap:10px}
   #hud{padding-inline:4px}
   #frame{padding:4px;border-radius:20px;border-width:3px;box-shadow:0 5px 0 var(--ink),0 16px 26px rgba(43,27,77,.22);
     background:repeating-linear-gradient(45deg,var(--st1) 0 9px,var(--st2) 9px 18px)}
   #cv{border-radius:14px;border-width:2px}
-  #dpad{width:100%;max-width:480px;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,clamp(62px,calc((100dvh - 100vw - 130px) / 2),112px));gap:10px 10px;padding-inline:4px;flex:none}
+  #dpad{width:100%;max-width:480px;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,clamp(62px,10.5dvh,96px));gap:8px 8px;padding-inline:4px;flex:none}
   #dpad button{border-radius:24px;border-width:4px;box-shadow:0 6px 0 var(--ink);-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
   #dpad button:active,#dpad button.hit{transform:translateY(4px);box-shadow:0 2px 0 var(--ink);filter:brightness(1.08)}
   #dpad svg{width:38px;height:38px}
@@ -768,8 +769,8 @@ const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").m
 const calm = () => S.chill || RM;
 // Phones: a bit slower, because swipes are slower than arrow keys.
 const TOUCH = !!(window.matchMedia && matchMedia("(pointer:coarse)").matches);
-const SPEED = TOUCH ? 1.35 : 1;
-const baseStep = L => Math.round(Math.max(L.step * SPEED, TOUCH ? 108 : 0));  // phones: never faster than ~9 squares/sec
+const SPEED = TOUCH ? 1.22 : 1;
+const baseStep = L => Math.round(L.step * SPEED);
 // Diwali week: on until the end of 11 Nov 2026 (IST). Add ?diwali=1 to preview it any time.
 const DIWALI = /[?&]diwali=1/.test(location.search) || Date.now() < Date.UTC(2026, 10, 11, 18, 30);
 const DIYA_GOAL = 3;
@@ -856,18 +857,50 @@ const SFX = {
 
 /* ---------- canvas & sizing ---------- */
 const cv = $("#cv"), ctx = cv.getContext("2d"), stage = $("#stage"), frameEl = $("#frame");
-let bs = 400, cell = 20, dpr = 1;
+let bs = 400, bw = 400, bh = 400, cell = 20, dpr = 1, camX = 0, camY = 0;
+// Phones: show ~13 squares across (instead of all 20) so everything is ~1.5x bigger, and let the board fill the screen height.
+// The view glides along with the snake; fruit that's off-screen gets an arrow at the edge.
+const ZOOM = !!(window.matchMedia && matchMedia("(pointer:coarse)").matches) && !/[?&]zoom=0/.test(location.search), VIEW = 13;
 function fit(){
   const r = stage.getBoundingClientRect();
-  let s = Math.floor(Math.min(r.width, r.height - 12));
-  s = Math.max(180, Math.min(s, 760));
-  frameEl.style.width = frameEl.style.height = s + "px";
   const fcs = getComputedStyle(frameEl), ccs = getComputedStyle(cv);
-  const chrome = 2 * (parseFloat(fcs.paddingLeft) + parseFloat(fcs.borderLeftWidth) + parseFloat(ccs.borderLeftWidth));
-  bs = s - (chrome || 32); cell = bs / W; dpr = Math.min(2, window.devicePixelRatio || 1);
-  cv.width = Math.round(bs*dpr); cv.height = Math.round(bs*dpr);
-  cv.style.width = cv.style.height = bs + "px";
-  $("#hud").style.maxWidth = s + "px";
+  const chrome = 2 * (parseFloat(fcs.paddingLeft) + parseFloat(fcs.borderLeftWidth) + parseFloat(ccs.borderLeftWidth)) || 32;
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  let fw, fh;
+  if (ZOOM && r.width < 640) {
+    fw = Math.floor(r.width); fh = Math.floor(Math.max(180, r.height - 8));
+    bw = fw - chrome; bh = fh - chrome;
+    cell = Math.max(bw / VIEW, bh / W);           // never show more rows than the board has
+    bw = Math.min(bw, cell * W); bh = Math.min(bh, cell * W); fw = bw + chrome; fh = bh + chrome;
+  } else {
+    let s = Math.floor(Math.min(r.width, r.height - 12));
+    s = Math.max(180, Math.min(s, 760)); fw = fh = s;
+    bw = bh = s - chrome; cell = bw / W;
+  }
+  bs = bw;
+  frameEl.style.width = fw + "px"; frameEl.style.height = fh + "px";
+  cv.width = Math.round(bw*dpr); cv.height = Math.round(bh*dpr);
+  cv.style.width = bw + "px"; cv.style.height = bh + "px";
+  $("#hud").style.maxWidth = Math.max(fw, 320) + "px";
+  camSnap = true;
+}
+let camSnap = true;
+function headPx(t){
+  const s = g.snake[0], p = (g.prev && g.prev[0]) || s;
+  if (Math.abs(p.x-s.x)+Math.abs(p.y-s.y) > 1.5) return {x:(s.x+.5)*cell, y:(s.y+.5)*cell};
+  return {x:(p.x+(s.x-p.x)*t+.5)*cell, y:(p.y+(s.y-p.y)*t+.5)*cell};
+}
+function moveCam(t, dt){
+  const ww = W*cell;
+  if (ww <= bw + .5 && ww <= bh + .5) { camX = camY = 0; return; }
+  const h = headPx(t);
+  // lead the camera a little in the direction we're heading so you can see what's coming
+  const [dx,dy] = DIRS[g.dir] || [0,0], lead = cell * 2.2;
+  const clamp = (v, size) => size >= ww ? (ww - size) / 2 : Math.max(0, Math.min(ww - size, v));
+  const tx = clamp(h.x + dx*lead - bw/2, bw), ty = clamp(h.y + dy*lead - bh/2, bh);
+  if (camSnap) { camX = tx; camY = ty; camSnap = false; return; }
+  const k = Math.min(1, dt * 6);
+  camX += (tx - camX) * k; camY += (ty - camY) * k;
 }
 new ResizeObserver(fit).observe(stage);
 addEventListener("resize", fit);
@@ -942,7 +975,7 @@ function step(){
   g.prev = g.snake.map(s=>({...s}));
   g.snake.unshift({x:nx, y:ny});
   if (grow) g.prev.push({...g.prev[g.prev.length-1]}); else g.snake.pop();
-  g.lastDir = g.dir; g.graced = false;
+  g.lastDir = g.dir;
   if (warped) { SFX.portal(); burst(nx,ny,WORLDS[g.L.w].portal,10); g.holdUntil = g.t + .3;
     const [ex,ey] = DIRS[g.dir]; if (roomFrom(nx+ex, ny+ey) < 4) { const d = safeDir(); if (d) { g.dir = d; g.lastDir = d; g.queue = []; } } }
   if (hitP) grabPower(g.power);
@@ -973,8 +1006,6 @@ function safeDir(){
   return best;
 }
 function bump(cause){
-  // a split-second of grace: the snake squishes against the wall for one beat, so a late turn still saves you
-  if (!g.graced && !g.demo) { g.graced = true; g.prev = g.snake.map(s => ({...s})); return; }
   if (g.shield && !g.demo) {
     const d = safeDir();
     if (d) { g.shield = false; g.dir = d; g.queue = []; g.holdUntil = g.t + .45; SFX.shieldPop(); const h = g.snake[0];
@@ -1316,9 +1347,15 @@ function drawSnake(t){
 function render(dt){
   const c = cell, Wd = WORLDS[g.L.w];
   ctx.setTransform(dpr,0,0,dpr,0,0);
+  const running0 = state==="play" || ((state==="home"||state==="map"||state==="skins"||state==="lb"||state==="account") && g.demo);
+  const tt0 = (running0 || state==="paused") ? Math.min(1, g.acc/stepLen()) : 1;
+  moveCam(tt0, dt || 0);
+  ctx.fillStyle = Wd.wall[2]; ctx.fillRect(0,0,bw,bh);
   ctx.save();
   if (g.shake > 0) { ctx.translate((Math.random()-.5)*g.shake, (Math.random()-.5)*g.shake); g.shake *= .86; if (g.shake < .3) g.shake = 0; }
-  ctx.fillStyle = Wd.tA; ctx.fillRect(-12,-12,bs+24,bs+24);
+  ctx.translate(-camX, -camY);
+  const zoomed = W*c > bw + .5 || W*c > bh + .5;
+  ctx.fillStyle = Wd.tA; zoomed ? ctx.fillRect(0,0,W*c,W*c) : ctx.fillRect(-12,-12,bs+24,bs+24);
   ctx.fillStyle = Wd.tB;
   for (let y=0;y<W;y++) for (let x=0;x<W;x++) if ((x+y)%2) ctx.fillRect(x*c,y*c,c,c);
   if (DIWALI) { const LC = ["#FFD23F","#FF5FA2","#FF8C1A","#7CF5D0"]; ctx.strokeStyle = "rgba(43,27,77,.35)"; ctx.lineWidth = 1.5; ctx.beginPath(); for (let k=0;k<=W;k++) ctx.lineTo(k*c, c*.18 + Math.sin(k*1.3)*c*.08); ctx.stroke();
@@ -1334,7 +1371,8 @@ function render(dt){
   if (ghost) { const left = g.ghostUntil - g.t; ctx.globalAlpha = left < 2 ? (Math.sin(g.clock*30) > 0 ? .75 : .3) : .5 + .15*Math.sin(g.clock*10); }
   drawSnake(tt);
   ctx.globalAlpha = 1;
-  if (g.t < g.slowUntil) { ctx.fillStyle = "rgba(90,184,255,.13)"; ctx.fillRect(-12,-12,bs+24,bs+24); }
+  if (zoomed) { ctx.strokeStyle = INK; ctx.lineWidth = Math.max(3, c*.14); ctx.strokeRect(-ctx.lineWidth/2, -ctx.lineWidth/2, W*c + ctx.lineWidth, W*c + ctx.lineWidth); }
+  if (g.t < g.slowUntil) { ctx.fillStyle = "rgba(90,184,255,.13)"; ctx.fillRect(camX-12,camY-12,bw+24,bh+24); }
   const fx = [];
   if (ghost) fx.push(["Ghost", g.ghostUntil - g.t]);
   if (g.t < g.slowUntil) fx.push(["Slow-mo", g.slowUntil - g.t]);
@@ -1345,7 +1383,7 @@ function render(dt){
     circle((h.x+.5)*c, (h.y+.5)*c, c*(.85 + .06*Math.sin(g.clock*6))); ctx.stroke(); }
   fx.forEach(([lab, left], k) => {
     const fs = Math.max(11, c*.6); ctx.font = `${fs}px "Lilita One", "Baloo 2", sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-    const txt = left == null ? `${lab} ✓` : `${lab} ${Math.ceil(left)}`, x = c*.4, y = c*.6 + k*fs*1.3;
+    const txt = left == null ? `${lab} ✓` : `${lab} ${Math.ceil(left)}`, x = camX + c*.4, y = camY + c*.6 + k*fs*1.3;
     ctx.lineWidth = fs*.25; ctx.strokeStyle = INK; ctx.strokeText(txt, x, y); ctx.fillStyle = "#FFFFFF"; ctx.fillText(txt, x, y);
   });
   // particles
@@ -1366,16 +1404,39 @@ function render(dt){
     if (f.life > f.max) { g.floats.splice(i,1); continue; }
     const k = f.life/f.max, s = f.size * (k < .15 ? .6 + k/.15*.4 : 1);
     const fs = c*.85*s; ctx.font = `${fs}px "Lilita One", "Baloo 2", sans-serif`;
-    const tw = ctx.measureText(f.text).width, x = Math.max(tw/2+6, Math.min(bs-tw/2-6, f.x)), y = Math.max(fs, f.y - k*c*1.3);
+    const tw = ctx.measureText(f.text).width, x = Math.max(camX+tw/2+6, Math.min(camX+bw-tw/2-6, f.x)), y = Math.max(camY+fs, f.y - k*c*1.3);
     ctx.globalAlpha = k > .7 ? 1 - (k-.7)/.3 : 1;
     ctx.lineWidth = fs*.22; ctx.strokeStyle = INK; ctx.strokeText(f.text,x,y);
     ctx.fillStyle = f.col; ctx.fillText(f.text,x,y);
   }
   ctx.globalAlpha = 1;
   ctx.restore();
-  const vg = ctx.createRadialGradient(bs/2,bs/2,bs*.38,bs/2,bs/2,bs*.75);
+  const vr = Math.max(bw, bh), vg = ctx.createRadialGradient(bw/2,bh/2,vr*.38,bw/2,bh/2,vr*.75);
   vg.addColorStop(0,"rgba(43,27,77,0)"); vg.addColorStop(1,"rgba(43,27,77,.16)");
-  ctx.fillStyle = vg; ctx.fillRect(0,0,bs,bs);
+  ctx.fillStyle = vg; ctx.fillRect(0,0,bw,bh);
+  if (zoomed) {  // the board carries on past this edge: fade it out so the frame doesn't look like a wall
+    const ww = W*cell, f = cell*1.4, edge = (x0,y0,x1,y1,rx,ry,rw,rh) => { const gr = ctx.createLinearGradient(x0,y0,x1,y1);
+      gr.addColorStop(0,"rgba(43,27,77,.28)"); gr.addColorStop(1,"rgba(43,27,77,0)"); ctx.fillStyle = gr; ctx.fillRect(rx,ry,rw,rh); };
+    if (camX > 1) edge(0,0,f,0, 0,0,f,bh);
+    if (camX + bw < ww - 1) edge(bw,0,bw-f,0, bw-f,0,f,bh);
+    if (camY > 1) edge(0,0,0,f, 0,0,bw,f);
+    if (camY + bh < ww - 1) edge(0,bh,0,bh-f, 0,bh-f,bw,f);
+  }
+  if (zoomed && !g.demo) { pointAt(g.fruit, "#FF5FA2"); pointAt(g.gold, "#FFC93C"); }
+}
+// off-screen fruit: a little bubble with an arrow, pinned to the edge of the view
+function pointAt(f, col){
+  if (!f) return;
+  const c = cell, fx = (f.x+.5)*c - camX, fy = (f.y+.5)*c - camY, m = c*.95;
+  if (fx > -c*.3 && fx < bw + c*.3 && fy > -c*.3 && fy < bh + c*.3) return;
+  const x = Math.max(m, Math.min(bw - m, fx)), y = Math.max(m, Math.min(bh - m, fy)), a = Math.atan2(fy - y, fx - x);
+  const pulse = 1 + .08*Math.sin(g.clock*6);
+  ctx.save(); ctx.translate(x, y); ctx.scale(pulse, pulse);
+  ctx.save(); ctx.rotate(a); ctx.fillStyle = col; ctx.strokeStyle = INK; ctx.lineWidth = c*.09; ctx.lineJoin = "round";
+  ctx.beginPath(); ctx.moveTo(c*.95, 0); ctx.lineTo(c*.5, -c*.32); ctx.lineTo(c*.5, c*.32); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = "#FFF8F1"; ctx.strokeStyle = INK; ctx.lineWidth = c*.09; circle(0, 0, c*.58); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  ctx.save(); ctx.translate(x, y); drawFruit(f.type, 0, 0, c*.4); ctx.restore();
 }
 
 /* ---------- loop ---------- */
@@ -1386,8 +1447,7 @@ function loop(now){
   g.clock += dt;
   const running = state==="play" || ((state==="home"||state==="map"||state==="skins"||state==="lb"||state==="account") && g.demo);
   if (running) {
-    if (g.waiting && g.queue.length) g.waiting = false;
-    if (!g.waiting) { g.t += dt; if (g.t >= (g.holdUntil || 0)) g.acc += dt*1000; }
+    g.t += dt; if (g.t >= (g.holdUntil || 0)) g.acc += dt*1000;
     let n = 0; const gg = g;
     while (g === gg && g.acc >= stepLen() && n < 3 && !g.dead && !g.won) { g.acc -= stepLen(); n++; step(); }
     if (g === gg && !g.dead && !g.won) {
@@ -1785,18 +1845,12 @@ function startCountdown(){
     if (state !== "count") return;
     el.hidden = false; el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump");
     if (n > 0) { el.textContent = n; SFX.tick(); n--; countTimer = setTimeout(tick, 620); }
-    else { el.textContent = "Go!"; SFX.go(); state = "play"; g.acc = 0; waitForMove(); countTimer = setTimeout(() => { el.hidden = true; }, 450); }
+    else { el.textContent = "Go!"; SFX.go(); state = "play"; g.acc = 0; countTimer = setTimeout(() => { el.hidden = true; }, 450); }
   };
   tick();
 }
 let countTimer = 0;
-function skipCountdown(){ if (state !== "count") return; clearTimeout(countTimer); const el = $("#count"); el.textContent = "Go!"; SFX.go(); state = "play"; g.acc = 0; waitForMove(); countTimer = setTimeout(()=>{ el.hidden = true; }, 350); }
-// the snake stays put after "Go!" until you pick a direction, so you never crash before you've even moved
-function waitForMove(){
-  if (!g || g.demo || g.queue.length) return;
-  g.waiting = true; const h = g.snake[0];
-  floatText(h.x, h.y - 1.4, TOUCH ? "Swipe or tap an arrow 👆" : "Press an arrow to go", "#FFFFFF", 1);
-}
+function skipCountdown(){ if (state !== "count") return; clearTimeout(countTimer); const el = $("#count"); el.textContent = "Go!"; SFX.go(); state = "play"; g.acc = 0; countTimer = setTimeout(()=>{ el.hidden = true; }, 350); }
 function pause(){ if (state !== "play") return; state = "paused"; $("#pzText").textContent = `You've munched ${g.eaten} of ${g.L.goal}. Touch-grass break? Your snake will wait.`; screen("scrPause"); }
 function resume(){ if (state !== "paused") return; state = "play"; screen(null); }
 function retry(i){ if (!canPlay(i)) { showOutOfLives(i); return; } applyWorld(getLevel(i).w); newGame(i,false); shownSec = -1; startCountdown(); }
@@ -1919,7 +1973,6 @@ function showWin(){
 function queueDir(d){
   if (state !== "play" && state !== "count") return;
   const lastQ = g.queue.length ? g.queue[g.queue.length-1] : g.dir;
-  if (g.waiting && d === g.dir) { g.waiting = false; if (state === "play") SFX.turn(); return; }
   if (d === lastQ || d === OPP[lastQ] || g.queue.length >= 3) return;
   g.queue.push(d);
   if (state === "play") SFX.turn();
@@ -1967,9 +2020,13 @@ addEventListener("pointerup", e => {
 document.addEventListener("touchmove", e => { if (state === "play" || state === "count" || state === "dying") e.preventDefault(); }, {passive:false});
 addEventListener("pointercancel", () => { sw = null; });
 document.querySelectorAll("#dpad button").forEach(b => {
-  b.addEventListener("pointerdown", e => { e.preventDefault(); queueDir(b.dataset.d);
+  let lastTouch = 0;
+  const press = e => { e.preventDefault(); queueDir(b.dataset.d);
     b.classList.add("hit"); setTimeout(() => b.classList.remove("hit"), 120);
-    if (navigator.vibrate) try { navigator.vibrate(8); } catch (err) {} });
+    if (navigator.vibrate) try { navigator.vibrate(8); } catch (err) {} };
+  // touchstart fires the instant a finger lands (iOS can be slow/flaky with pointer events on buttons)
+  b.addEventListener("touchstart", e => { lastTouch = Date.now(); press(e); }, {passive:false});
+  b.addEventListener("pointerdown", e => { if (Date.now() - lastTouch < 600) return; press(e); });
   b.addEventListener("contextmenu", e => e.preventDefault());
 });
 document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
