@@ -768,8 +768,8 @@ const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").m
 const calm = () => S.chill || RM;
 // Phones: a bit slower, because swipes are slower than arrow keys.
 const TOUCH = !!(window.matchMedia && matchMedia("(pointer:coarse)").matches);
-const SPEED = TOUCH ? 1.22 : 1;
-const baseStep = L => Math.round(L.step * SPEED);
+const SPEED = TOUCH ? 1.35 : 1;
+const baseStep = L => Math.round(Math.max(L.step * SPEED, TOUCH ? 108 : 0));  // phones: never faster than ~9 squares/sec
 // Diwali week: on until the end of 11 Nov 2026 (IST). Add ?diwali=1 to preview it any time.
 const DIWALI = /[?&]diwali=1/.test(location.search) || Date.now() < Date.UTC(2026, 10, 11, 18, 30);
 const DIYA_GOAL = 3;
@@ -942,7 +942,7 @@ function step(){
   g.prev = g.snake.map(s=>({...s}));
   g.snake.unshift({x:nx, y:ny});
   if (grow) g.prev.push({...g.prev[g.prev.length-1]}); else g.snake.pop();
-  g.lastDir = g.dir;
+  g.lastDir = g.dir; g.graced = false;
   if (warped) { SFX.portal(); burst(nx,ny,WORLDS[g.L.w].portal,10); g.holdUntil = g.t + .3;
     const [ex,ey] = DIRS[g.dir]; if (roomFrom(nx+ex, ny+ey) < 4) { const d = safeDir(); if (d) { g.dir = d; g.lastDir = d; g.queue = []; } } }
   if (hitP) grabPower(g.power);
@@ -973,6 +973,8 @@ function safeDir(){
   return best;
 }
 function bump(cause){
+  // a split-second of grace: the snake squishes against the wall for one beat, so a late turn still saves you
+  if (!g.graced && !g.demo) { g.graced = true; g.prev = g.snake.map(s => ({...s})); return; }
   if (g.shield && !g.demo) {
     const d = safeDir();
     if (d) { g.shield = false; g.dir = d; g.queue = []; g.holdUntil = g.t + .45; SFX.shieldPop(); const h = g.snake[0];
@@ -1384,7 +1386,8 @@ function loop(now){
   g.clock += dt;
   const running = state==="play" || ((state==="home"||state==="map"||state==="skins"||state==="lb"||state==="account") && g.demo);
   if (running) {
-    g.t += dt; if (g.t >= (g.holdUntil || 0)) g.acc += dt*1000;
+    if (g.waiting && g.queue.length) g.waiting = false;
+    if (!g.waiting) { g.t += dt; if (g.t >= (g.holdUntil || 0)) g.acc += dt*1000; }
     let n = 0; const gg = g;
     while (g === gg && g.acc >= stepLen() && n < 3 && !g.dead && !g.won) { g.acc -= stepLen(); n++; step(); }
     if (g === gg && !g.dead && !g.won) {
@@ -1782,12 +1785,18 @@ function startCountdown(){
     if (state !== "count") return;
     el.hidden = false; el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump");
     if (n > 0) { el.textContent = n; SFX.tick(); n--; countTimer = setTimeout(tick, 620); }
-    else { el.textContent = "Go!"; SFX.go(); state = "play"; g.acc = 0; countTimer = setTimeout(() => { el.hidden = true; }, 450); }
+    else { el.textContent = "Go!"; SFX.go(); state = "play"; g.acc = 0; waitForMove(); countTimer = setTimeout(() => { el.hidden = true; }, 450); }
   };
   tick();
 }
 let countTimer = 0;
-function skipCountdown(){ if (state !== "count") return; clearTimeout(countTimer); const el = $("#count"); el.textContent = "Go!"; SFX.go(); state = "play"; g.acc = 0; countTimer = setTimeout(()=>{ el.hidden = true; }, 350); }
+function skipCountdown(){ if (state !== "count") return; clearTimeout(countTimer); const el = $("#count"); el.textContent = "Go!"; SFX.go(); state = "play"; g.acc = 0; waitForMove(); countTimer = setTimeout(()=>{ el.hidden = true; }, 350); }
+// the snake stays put after "Go!" until you pick a direction, so you never crash before you've even moved
+function waitForMove(){
+  if (!g || g.demo || g.queue.length) return;
+  g.waiting = true; const h = g.snake[0];
+  floatText(h.x, h.y - 1.4, TOUCH ? "Swipe or tap an arrow 👆" : "Press an arrow to go", "#FFFFFF", 1);
+}
 function pause(){ if (state !== "play") return; state = "paused"; $("#pzText").textContent = `You've munched ${g.eaten} of ${g.L.goal}. Touch-grass break? Your snake will wait.`; screen("scrPause"); }
 function resume(){ if (state !== "paused") return; state = "play"; screen(null); }
 function retry(i){ if (!canPlay(i)) { showOutOfLives(i); return; } applyWorld(getLevel(i).w); newGame(i,false); shownSec = -1; startCountdown(); }
@@ -1910,6 +1919,7 @@ function showWin(){
 function queueDir(d){
   if (state !== "play" && state !== "count") return;
   const lastQ = g.queue.length ? g.queue[g.queue.length-1] : g.dir;
+  if (g.waiting && d === g.dir) { g.waiting = false; if (state === "play") SFX.turn(); return; }
   if (d === lastQ || d === OPP[lastQ] || g.queue.length >= 3) return;
   g.queue.push(d);
   if (state === "play") SFX.turn();
