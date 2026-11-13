@@ -2201,6 +2201,14 @@ $("#wnMap").addEventListener("click", () => { SFX.click(); showMap(); });
 
 /* ---------- boot ---------- */
 if (/netlify\.app$/i.test(location.hostname)) document.documentElement.classList.add("hosted");
+// TEST LINKS ONLY (*.vercel.app previews): ?level=18 unlocks up to that level and opens it, so features can be tried without signing in
+(() => { const m = /[?&]level=(\d+)/.exec(location.search);
+  if (!m || !/\.vercel\.app$/i.test(location.hostname) || /^jelly-munch-site\.vercel\.app$/i.test(location.hostname)) return;
+  const n = Math.max(1, Math.min(200, +m[1]));
+  for (let i = 0; i < n-1; i++) if (!S.stars[i]) S.stars[i] = 2;
+  S.lifeBank = Math.max(S.lifeBank || 0, 50);
+  setTimeout(() => openLevel(n-1), 300);
+})();
 fit(); syncToggles(); showHome(); renderAccount(); initAuth(); handlePaymentReturn();
 if (/[?&]review=1/.test(location.search)) showRate(null);
 requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); });
