@@ -125,6 +125,18 @@ body{background:var(--bg1);color:var(--ink);font-family:var(--body);font-size:16
 #dpad [data-d="L"]{grid-column:1;grid-row:2}
 #dpad [data-d="D"]{grid-column:2;grid-row:2}
 #dpad [data-d="R"]{grid-column:3;grid-row:2}
+/* ---------- phones: bigger board, big thumb-sized controls ---------- */
+@media (pointer:coarse){
+  #app{padding-inline:6px;padding-top:max(8px,env(safe-area-inset-top));padding-bottom:max(12px,env(safe-area-inset-bottom));gap:10px}
+  #hud{padding-inline:4px}
+  #frame{padding:4px;border-radius:20px;border-width:3px;box-shadow:0 5px 0 var(--ink),0 16px 26px rgba(43,27,77,.22);
+    background:repeating-linear-gradient(45deg,var(--st1) 0 9px,var(--st2) 9px 18px)}
+  #cv{border-radius:14px;border-width:2px}
+  #dpad{width:100%;max-width:480px;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,clamp(62px,calc((100dvh - 100vw - 130px) / 2),112px));gap:10px 10px;padding-inline:4px;flex:none}
+  #dpad button{border-radius:24px;border-width:4px;box-shadow:0 6px 0 var(--ink);-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  #dpad button:active,#dpad button.hit{transform:translateY(4px);box-shadow:0 2px 0 var(--ink);filter:brightness(1.08)}
+  #dpad svg{width:38px;height:38px}
+}
 
 /* Screens */
 .screen{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:16px;overflow:auto;background:rgba(43,27,77,.28);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
@@ -850,7 +862,9 @@ function fit(){
   let s = Math.floor(Math.min(r.width, r.height - 12));
   s = Math.max(180, Math.min(s, 760));
   frameEl.style.width = frameEl.style.height = s + "px";
-  bs = s - 32; cell = bs / W; dpr = Math.min(2, window.devicePixelRatio || 1);
+  const fcs = getComputedStyle(frameEl), ccs = getComputedStyle(cv);
+  const chrome = 2 * (parseFloat(fcs.paddingLeft) + parseFloat(fcs.borderLeftWidth) + parseFloat(ccs.borderLeftWidth));
+  bs = s - (chrome || 32); cell = bs / W; dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.width = Math.round(bs*dpr); cv.height = Math.round(bs*dpr);
   cv.style.width = cv.style.height = bs + "px";
   $("#hud").style.maxWidth = s + "px";
@@ -1942,7 +1956,12 @@ addEventListener("pointerup", e => {
 // stop the page scrolling / pull-to-refresh / back-swipe while playing
 document.addEventListener("touchmove", e => { if (state === "play" || state === "count" || state === "dying") e.preventDefault(); }, {passive:false});
 addEventListener("pointercancel", () => { sw = null; });
-document.querySelectorAll("#dpad button").forEach(b => b.addEventListener("pointerdown", e => { e.preventDefault(); queueDir(b.dataset.d); }));
+document.querySelectorAll("#dpad button").forEach(b => {
+  b.addEventListener("pointerdown", e => { e.preventDefault(); queueDir(b.dataset.d);
+    b.classList.add("hit"); setTimeout(() => b.classList.remove("hit"), 120);
+    if (navigator.vibrate) try { navigator.vibrate(8); } catch (err) {} });
+  b.addEventListener("contextmenu", e => e.preventDefault());
+});
 document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
 
 document.querySelectorAll(".tog").forEach(b => b.addEventListener("click", () => {
