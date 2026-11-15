@@ -121,6 +121,10 @@ body{background:var(--bg1);color:var(--ink);font-family:var(--body);font-size:16
 #dpad button{border:3px solid var(--ink);border-radius:18px;background:linear-gradient(#9AD6FF,var(--sky));box-shadow:0 4px 0 var(--ink);display:grid;place-items:center;color:#fff;padding:0;cursor:pointer}
 #dpad button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
 #dpad svg{width:24px;height:24px}
+/* phones: swipe only, no arrow keys */
+@media (pointer:coarse){ #app #dpad{display:none} #app #swipeHint{display:block} }
+#swipeHint{display:none;flex:none;font-weight:800;font-size:15px;color:var(--muted);padding:2px 14px 0}
+.menu #swipeHint{visibility:hidden}
 #dpad [data-d="U"]{grid-column:2;grid-row:1}
 #dpad [data-d="L"]{grid-column:1;grid-row:2}
 #dpad [data-d="D"]{grid-column:2;grid-row:2}
@@ -327,6 +331,7 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     <div id="frame"><canvas id="cv" aria-label="Game board"></canvas><div id="count" hidden></div></div>
   </main>
 
+  <div id="swipeHint" aria-hidden="true">👆 Swipe anywhere to turn</div>
   <div id="dpad" aria-label="Direction pad">
     <button data-d="U" aria-label="Up"><svg viewBox="0 0 24 24"><path d="M12 5l7 9H5z" fill="currentColor" stroke="#2B1B4D" stroke-width="2" stroke-linejoin="round"/></svg></button>
     <button data-d="L" aria-label="Left"><svg viewBox="0 0 24 24"><path d="M5 12l9-7v14z" fill="currentColor" stroke="#2B1B4D" stroke-width="2" stroke-linejoin="round"/></svg></button>
@@ -595,7 +600,9 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
 (() => {
 "use strict";
 const $ = s => document.querySelector(s);
-const W = 20, INK = "#2B1B4D";
+// Phones get their own board: 14 squares wide x 20 tall. Every square is ~40% bigger and the board fills the screen.
+const PHONE = !!(window.matchMedia && matchMedia("(pointer:coarse)").matches) && Math.min(innerWidth || 9999, (screen && screen.width) || 9999) < 700 && !/[?&]phone=0/.test(location.search);
+const W = PHONE ? 14 : 20, H = 20, INK = "#2B1B4D";
 const DIRS = {U:[0,-1], D:[0,1], L:[-1,0], R:[1,0]}, OPP = {U:"D", D:"U", L:"R", R:"L"};
 
 const WORLDS = [
@@ -643,9 +650,17 @@ function dailyLevel(){
   ][Math.floor(Date.parse(day)/864e5) % 4];
   return genCache.daily = Object.assign({daily:true, day, tipText:T.tip}, T);
 }
+// phone board is narrower: squeeze a 20-wide layout's columns onto 14 (rows stay the same)
+const phoneCache = {};
+function squeeze(L){
+  if (!PHONE || !L || L._sq) return L;
+  const X = x => Math.round(x * (W-1) / 19), seen = new Set(), walls = [];
+  for (const [x,y] of (L.walls || [])) { const k = X(x)+","+y; if (!seen.has(k)) { seen.add(k); walls.push([X(x), y]); } }
+  return Object.assign({}, L, {_sq:true, walls, portals: L.portals ? L.portals.map(([x,y]) => [X(x), y]) : L.portals, start: L.start ? [X(L.start[0]), L.start[1], L.start[2]] : L.start});
+}
 function getLevel(i){
-  if (i === DAILY) return dailyLevel();
-  if (i < LEVELS.length) return LEVELS[i];
+  if (i === DAILY) { const d = dailyLevel(); return PHONE ? (phoneCache.daily && phoneCache.daily.day === d.day ? phoneCache.daily : (phoneCache.daily = squeeze(d))) : d; }
+  if (i < LEVELS.length) return PHONE ? (phoneCache[i] || (phoneCache[i] = squeeze(LEVELS[i]))) : LEVELS[i];
   if (genCache[i]) return genCache[i];
   const n = i - LEVELS.length, w = n % 3, R = rng(i*7919 + 17);
   // Bonus rounds land on milestones: levels 15, 20, 25 … (a short breather, clearly labelled)
@@ -655,21 +670,21 @@ function getLevel(i){
   const L = {w, endless:true, name:ENDLESS_NAMES[w][Math.floor(n/3) % 6] + (n >= 18 ? " " + (Math.floor(n/18)+1) : ""),
     goal:Math.min(30, 16 + Math.floor(n/2)), step:Math.max(66, 100 - 2*n), golden:true, moving:R() < Math.min(.85, .55 + .03*n)};
   for (let tries = 0; tries < 40; tries++) {
-    const pieces = Math.max(2, Math.min(14, 7 + Math.floor(n/2)) - Math.floor(tries/6)), cells = new Set();
+    const pieces = Math.max(2, Math.round((Math.min(14, 7 + Math.floor(n/2)) - Math.floor(tries/6)) * (PHONE ? .65 : 1))), cells = new Set();
     for (let k = 0; k < pieces; k++) {
-      const kind = R(), x = 1 + Math.floor(R()*8), y = Math.floor(R()*W);
+      const kind = R(), x = 1 + Math.floor(R()*(PHONE ? 5 : 8)), y = Math.floor(R()*H);
       let c = kind < .4 ? block(x,y,2,2) : kind < .7 ? hl(y,x,x+2+Math.floor(R()*3)) : vl(x,y,y+2+Math.floor(R()*3));
-      for (const [a,b] of c) for (const [xx,yy] of [[a,b],[W-1-a,b]]) if (xx>=0&&xx<W&&yy>=0&&yy<W && Math.abs(yy-10) > 1) cells.add(xx+","+yy);
+      for (const [a,b] of c) for (const [xx,yy] of [[a,b],[W-1-a,b]]) if (xx>=0&&xx<W&&yy>=0&&yy<H && Math.abs(yy-10) > 1) cells.add(xx+","+yy);
     }
     const walls = [...cells].map(k => k.split(",").map(Number));
     let portals = null;
-    if (R() < Math.min(.8, .6 + .02*n)) { const free = []; for (let y=0;y<W;y++) for (let x=0;x<W;x++) if (!cells.has(x+","+y) && Math.abs(y-10) > 1 && x>1 && y>1 && x<W-2 && y<W-2 && [-1,0,1].every(a=>[-1,0,1].every(b=>!cells.has((x+a)+","+(y+b))))) free.push([x,y]);
+    if (R() < Math.min(.8, .6 + .02*n)) { const free = []; for (let y=0;y<H;y++) for (let x=0;x<W;x++) if (!cells.has(x+","+y) && Math.abs(y-10) > 1 && x>1 && y>1 && x<W-2 && y<H-2 && [-1,0,1].every(a=>[-1,0,1].every(b=>!cells.has((x+a)+","+(y+b))))) free.push([x,y]);
       const a = free[Math.floor(R()*free.length)], b = free[Math.floor(R()*free.length)];
       if (a && b && Math.abs(a[0]-b[0]) + Math.abs(a[1]-b[1]) > 8) portals = [a,b]; }
     // every open cell must be reachable from the start
     const seen = new Set(["5,10"]), q = [[5,10]]; let open = 0;
-    for (let y=0;y<W;y++) for (let x=0;x<W;x++) if (!cells.has(x+","+y)) open++;
-    while (q.length) { const [x,y] = q.pop(); for (const [dx,dy] of Object.values(DIRS)) { const k = (x+dx)+","+(y+dy); if (x+dx>=0&&y+dy>=0&&x+dx<W&&y+dy<W && !cells.has(k) && !seen.has(k)) { seen.add(k); q.push([x+dx,y+dy]); } } }
+    for (let y=0;y<H;y++) for (let x=0;x<W;x++) if (!cells.has(x+","+y)) open++;
+    while (q.length) { const [x,y] = q.pop(); for (const [dx,dy] of Object.values(DIRS)) { const k = (x+dx)+","+(y+dy); if (x+dx>=0&&y+dy>=0&&x+dx<W&&y+dy<H && !cells.has(k) && !seen.has(k)) { seen.add(k); q.push([x+dx,y+dy]); } } }
     if (seen.size === open) { L.walls = walls; L.portals = portals; break; }
   }
   L.walls = L.walls || [];
@@ -844,16 +859,17 @@ const SFX = {
 
 /* ---------- canvas & sizing ---------- */
 const cv = $("#cv"), ctx = cv.getContext("2d"), stage = $("#stage"), frameEl = $("#frame");
-let bs = 400, cell = 20, dpr = 1;
+let bs = 400, bw = 400, bh = 400, cell = 20, dpr = 1;
 function fit(){
-  const r = stage.getBoundingClientRect();
-  let s = Math.floor(Math.min(r.width, r.height - 12));
-  s = Math.max(180, Math.min(s, 760));
-  frameEl.style.width = frameEl.style.height = s + "px";
-  bs = s - 32; cell = bs / W; dpr = Math.min(2, window.devicePixelRatio || 1);
-  cv.width = Math.round(bs*dpr); cv.height = Math.round(bs*dpr);
-  cv.style.width = cv.style.height = bs + "px";
-  $("#hud").style.maxWidth = s + "px";
+  const r = stage.getBoundingClientRect(), chrome = 32;
+  // biggest squares that fit both ways (on phones the board is taller than it is wide)
+  cell = Math.max(6, Math.min((Math.min(r.width, 760) - chrome) / W, (Math.min(r.height - 12, 760) - chrome) / H));
+  bw = Math.floor(cell * W); bh = Math.floor(cell * H); cell = bw / W; bs = bw;
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  frameEl.style.width = (bw + chrome) + "px"; frameEl.style.height = (bh + chrome) + "px";
+  cv.width = Math.round(bw*dpr); cv.height = Math.round(bh*dpr);
+  cv.style.width = bw + "px"; cv.style.height = bh + "px";
+  $("#hud").style.maxWidth = Math.max(bw + chrome, 300) + "px";
 }
 new ResizeObserver(fit).observe(stage);
 addEventListener("resize", fit);
@@ -861,7 +877,7 @@ addEventListener("resize", fit);
 /* ---------- game state ---------- */
 let g = null, state = "home";
 function newGame(i, demo){
-  const L = getLevel(i), [sx,sy,sd] = L.start || [5,10,"R"], [dx,dy] = DIRS[sd];
+  const L = getLevel(i), [sx,sy,sd] = L.start || (PHONE ? [2,10,"R"] : [5,10,"R"]), [dx,dy] = DIRS[sd];
   const snake = [0,1,2].map(k => ({x:sx-dx*k, y:sy-dy*k}));
   g = {i, L, demo:!!demo, snake, prev:snake.map(p=>({...p})), dir:sd, lastDir:sd, queue:[], eaten:0, combo:0, lastEat:-9,
        stepMs:baseStep(L) + (S.chill?40:0), acc:0, t:0, clock:g?g.clock:0, particles:[], floats:[], dead:false, won:false, deadAt:0, shake:0,
@@ -870,7 +886,7 @@ function newGame(i, demo){
   updateHud();
 }
 function isFree(x,y){
-  if (x<0||y<0||x>=W||y>=W) return false;
+  if (x<0||y<0||x>=W||y>=H) return false;
   if (g.walls.has(x+","+y)) return false;
   if (g.portals && g.portals.some(p=>p[0]===x&&p[1]===y)) return false;
   if (g.snake.some(s=>s.x===x&&s.y===y)) return false;
@@ -883,11 +899,11 @@ function isFree(x,y){
 // fruit never lands in a dead-end pocket where the snake can only reach it by trapping itself.
 // Cells inside dead-end pockets (open on one side only, even after chaining) are pruned away,
 // so fruit never lands somewhere the snake can get in but not back out.
-function openCell(a,b){ return a>=0 && b>=0 && a<W && b<W && !g.walls.has(a+","+b) && !(g.portals && g.portals.some(p=>p[0]===a&&p[1]===b)); }
+function openCell(a,b){ return a>=0 && b>=0 && a<W && b<H && !g.walls.has(a+","+b) && !(g.portals && g.portals.some(p=>p[0]===a&&p[1]===b)); }
 function safeSet(){
   if (g._safe) return g._safe;  // walls never change mid-level
   const ok = new Set(), deg = {}, q = [];
-  for (let y=0;y<W;y++) for (let x=0;x<W;x++) if (openCell(x,y)) ok.add(x+","+y);
+  for (let y=0;y<H;y++) for (let x=0;x<W;x++) if (openCell(x,y)) ok.add(x+","+y);
   for (const k of ok) { const [x,y] = k.split(",").map(Number); let n = 0;
     for (const [dx,dy] of Object.values(DIRS)) if (ok.has((x+dx)+","+(y+dy))) n++;
     deg[k] = n; if (n <= 1) q.push(k); }
@@ -900,12 +916,12 @@ function roomy(x,y){
   if (!safeSet().has(x+","+y)) return false;
   let n = 0;
   for (const [dx,dy] of Object.values(DIRS)) { const a = x+dx, b = y+dy;
-    if (a>=0 && b>=0 && a<W && b<W && !g.walls.has(a+","+b) && !(g.portals && g.portals.some(p=>p[0]===a&&p[1]===b))) n++; }
+    if (a>=0 && b>=0 && a<W && b<H && !g.walls.has(a+","+b) && !(g.portals && g.portals.some(p=>p[0]===a&&p[1]===b))) n++; }
   return n >= 2;
 }
 function spawn(){
   const h = g.snake[0], c = [];
-  for (let y=0;y<W;y++) for (let x=0;x<W;x++) if (isFree(x,y) && roomy(x,y) && Math.abs(x-h.x)+Math.abs(y-h.y) > 2) c.push([x,y]);
+  for (let y=0;y<H;y++) for (let x=0;x<W;x++) if (isFree(x,y) && roomy(x,y) && Math.abs(x-h.x)+Math.abs(y-h.y) > 2) c.push([x,y]);
   if (!c.length) return null;
   const [x,y] = c[Math.random()*c.length|0];
   return {x, y, fx:x, fy:y, hopT:1, type:FRUITS[Math.random()*FRUITS.length|0], born:g.clock, hopAt:g.t + (calm()?3.2:2.2)};
@@ -917,7 +933,7 @@ function step(){
   const h = g.snake[0], [dx,dy] = DIRS[g.dir];
   let nx = h.x+dx, ny = h.y+dy;
   const ghosting = g.t < g.ghostUntil;
-  if (nx<0||ny<0||nx>=W||ny>=W) { if (!ghosting) return bump("wall"); nx = (nx+W)%W; ny = (ny+W)%W; }
+  if (nx<0||ny<0||nx>=W||ny>=H) { if (!ghosting) return bump("wall"); nx = (nx+W)%W; ny = (ny+H)%H; }
   if (!ghosting && g.walls.has(nx+","+ny)) return bump("block");
   let warped = false;
   if (g.portals) { const pi = g.portals.findIndex(p=>p[0]===nx&&p[1]===ny); if (pi >= 0) { const o = g.portals[1-pi]; nx = o[0]; ny = o[1]; warped = true; } }
@@ -942,7 +958,7 @@ function step(){
   if (hitG) eat(g.gold, 2);
   if (hitF) eat(g.fruit, 1);
 }
-function blockedAt(x,y){ return x<0 || y<0 || x>=W || y>=W || g.walls.has(x+","+y) || g.snake.slice(0,-1).some(s=>s.x===x&&s.y===y); }
+function blockedAt(x,y){ return x<0 || y<0 || x>=W || y>=H || g.walls.has(x+","+y) || g.snake.slice(0,-1).some(s=>s.x===x&&s.y===y); }
 // how much room is there if we head into (x,y)? (flood fill, capped)
 function roomFrom(x,y){
   if (blockedAt(x,y)) return -1;
@@ -1027,7 +1043,7 @@ function afterBump(){
 }
 function respawn(){
   SFX.respawn();
-  const [sx,sy,sd] = g.L.start || [5,10,"R"], [dx,dy] = DIRS[sd];
+  const [sx,sy,sd] = g.L.start || (PHONE ? [2,10,"R"] : [5,10,"R"]), [dx,dy] = DIRS[sd];
   g.snake = [0,1,2].map(k => ({x:sx-dx*k, y:sy-dy*k}));
   g.prev = g.snake.map(p=>({...p})); g.dir = g.lastDir = sd; g.queue = []; g.combo = 0;
   g.dead = false; g.acc = 0;
@@ -1035,7 +1051,7 @@ function respawn(){
   if (onSnake(g.fruit)) g.fruit = spawn();
   if (onSnake(g.gold)) g.gold = null;
   if (onSnake(g.power)) g.power = null;
-  floatText(W/2-.5, W/2-3, g.lives === 1 ? "Last heart. Lock in 🔒" : g.lives + " hearts left. We move.", "#FFE14D", 1.1);
+  floatText(W/2-.5, H/2-3, g.lives === 1 ? "Last heart. Lock in 🔒" : g.lives + " hearts left. We move.", "#FFE14D", 1.1);
   g.floats[g.floats.length-1].max = 2;
   startCountdown();
 }
@@ -1063,10 +1079,10 @@ function aiTurn(){
   for (const d of ["U","D","L","R"]) {
     if (d === OPP[g.dir]) continue;
     const [dx,dy] = DIRS[d], x = h.x+dx, y = h.y+dy;
-    if (x<0||y<0||x>=W||y>=W||g.walls.has(x+","+y)) continue;
+    if (x<0||y<0||x>=W||y>=H||g.walls.has(x+","+y)) continue;
     if (g.snake.slice(0,-1).some(s=>s.x===x&&s.y===y)) continue;
     let free = 0;
-    for (const [ax,ay] of Object.values(DIRS)) { const xx=x+ax, yy=y+ay; if (xx>=0&&yy>=0&&xx<W&&yy<W&&!g.snake.some(s=>s.x===xx&&s.y===yy)) free++; }
+    for (const [ax,ay] of Object.values(DIRS)) { const xx=x+ax, yy=y+ay; if (xx>=0&&yy>=0&&xx<W&&yy<H&&!g.snake.some(s=>s.x===xx&&s.y===yy)) free++; }
     if (!free) continue;
     const sc = (f ? Math.abs(f.x-x)+Math.abs(f.y-y) : 0) + (d===g.dir?0:.3) + Math.random()*.6;
     if (sc < bd) { bd = sc; best = d; }
@@ -1302,9 +1318,9 @@ function render(dt){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.save();
   if (g.shake > 0) { ctx.translate((Math.random()-.5)*g.shake, (Math.random()-.5)*g.shake); g.shake *= .86; if (g.shake < .3) g.shake = 0; }
-  ctx.fillStyle = Wd.tA; ctx.fillRect(-12,-12,bs+24,bs+24);
+  ctx.fillStyle = Wd.tA; ctx.fillRect(-12,-12,bw+24,bh+24);
   ctx.fillStyle = Wd.tB;
-  for (let y=0;y<W;y++) for (let x=0;x<W;x++) if ((x+y)%2) ctx.fillRect(x*c,y*c,c,c);
+  for (let y=0;y<H;y++) for (let x=0;x<W;x++) if ((x+y)%2) ctx.fillRect(x*c,y*c,c,c);
   if (DIWALI) { const LC = ["#FFD23F","#FF5FA2","#FF8C1A","#7CF5D0"]; ctx.strokeStyle = "rgba(43,27,77,.35)"; ctx.lineWidth = 1.5; ctx.beginPath(); for (let k=0;k<=W;k++) ctx.lineTo(k*c, c*.18 + Math.sin(k*1.3)*c*.08); ctx.stroke();
     for (let k=0;k<W;k++) { const on = .55 + .45*Math.sin(g.clock*3 + k*1.7); ctx.globalAlpha = on; ctx.fillStyle = LC[k%4]; circle((k+.5)*c, c*.22 + Math.sin((k+.5)*1.3)*c*.08, c*.09); ctx.fill(); } ctx.globalAlpha = 1; }
   for (const [x,y] of g.wallList) drawBlock(x,y,Wd.wall);
@@ -1318,7 +1334,7 @@ function render(dt){
   if (ghost) { const left = g.ghostUntil - g.t; ctx.globalAlpha = left < 2 ? (Math.sin(g.clock*30) > 0 ? .75 : .3) : .5 + .15*Math.sin(g.clock*10); }
   drawSnake(tt);
   ctx.globalAlpha = 1;
-  if (g.t < g.slowUntil) { ctx.fillStyle = "rgba(90,184,255,.13)"; ctx.fillRect(-12,-12,bs+24,bs+24); }
+  if (g.t < g.slowUntil) { ctx.fillStyle = "rgba(90,184,255,.13)"; ctx.fillRect(-12,-12,bw+24,bh+24); }
   const fx = [];
   if (ghost) fx.push(["Ghost", g.ghostUntil - g.t]);
   if (g.t < g.slowUntil) fx.push(["Slow-mo", g.slowUntil - g.t]);
@@ -1350,16 +1366,16 @@ function render(dt){
     if (f.life > f.max) { g.floats.splice(i,1); continue; }
     const k = f.life/f.max, s = f.size * (k < .15 ? .6 + k/.15*.4 : 1);
     const fs = c*.85*s; ctx.font = `${fs}px "Lilita One", "Baloo 2", sans-serif`;
-    const tw = ctx.measureText(f.text).width, x = Math.max(tw/2+6, Math.min(bs-tw/2-6, f.x)), y = Math.max(fs, f.y - k*c*1.3);
+    const tw = ctx.measureText(f.text).width, x = Math.max(tw/2+6, Math.min(bw-tw/2-6, f.x)), y = Math.max(fs, f.y - k*c*1.3);
     ctx.globalAlpha = k > .7 ? 1 - (k-.7)/.3 : 1;
     ctx.lineWidth = fs*.22; ctx.strokeStyle = INK; ctx.strokeText(f.text,x,y);
     ctx.fillStyle = f.col; ctx.fillText(f.text,x,y);
   }
   ctx.globalAlpha = 1;
   ctx.restore();
-  const vg = ctx.createRadialGradient(bs/2,bs/2,bs*.38,bs/2,bs/2,bs*.75);
+  const vr = Math.max(bw, bh), vg = ctx.createRadialGradient(bw/2,bh/2,vr*.38,bw/2,bh/2,vr*.75);
   vg.addColorStop(0,"rgba(43,27,77,0)"); vg.addColorStop(1,"rgba(43,27,77,.16)");
-  ctx.fillStyle = vg; ctx.fillRect(0,0,bs,bs);
+  ctx.fillStyle = vg; ctx.fillRect(0,0,bw,bh);
 }
 
 /* ---------- loop ---------- */
