@@ -125,25 +125,6 @@ body{background:var(--bg1);color:var(--ink);font-family:var(--body);font-size:16
 #dpad [data-d="L"]{grid-column:1;grid-row:2}
 #dpad [data-d="D"]{grid-column:2;grid-row:2}
 #dpad [data-d="R"]{grid-column:3;grid-row:2}
-/* ---------- phones: bigger board, big thumb-sized controls ---------- */
-@media (pointer:coarse){
-  #app{padding-inline:6px;padding-top:max(8px,env(safe-area-inset-top));padding-bottom:max(12px,env(safe-area-inset-bottom));gap:10px}
-  #hud{padding-inline:4px}
-  #frame{padding:4px;border-radius:20px;border-width:3px;box-shadow:0 5px 0 var(--ink),0 16px 26px rgba(43,27,77,.22);
-    background:repeating-linear-gradient(45deg,var(--st1) 0 9px,var(--st2) 9px 18px)}
-  #cv{border-radius:14px;border-width:2px}
-  #dpad{width:100%;max-width:480px;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,clamp(62px,calc((100dvh - 100vw - 130px) / 2),112px));gap:10px 10px;padding-inline:4px;flex:none}
-  #dpad button{border-radius:24px;border-width:4px;box-shadow:0 6px 0 var(--ink);-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
-  #dpad button:active,#dpad button.hit{transform:translateY(4px);box-shadow:0 2px 0 var(--ink);filter:brightness(1.08)}
-  #dpad svg{width:38px;height:38px}
-  /* swipe-only on phones: the arrow pad is gone */
-  #dpad{display:none !important}
-  #stage{place-items:center}
-  #app #swipeHint{display:block}
-}
-#swipeHint{display:none;flex:none;font-weight:800;font-size:15px;color:var(--muted);padding:6px 14px 4px;transition:opacity .6s}
-#swipeHint.gone{opacity:0}
-.menu #swipeHint{visibility:hidden}
 
 /* Screens */
 .screen{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:16px;overflow:auto;background:rgba(43,27,77,.28);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
@@ -346,7 +327,6 @@ button:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
     <div id="frame"><canvas id="cv" aria-label="Game board"></canvas><div id="count" hidden></div></div>
   </main>
 
-  <div id="swipeHint" aria-hidden="true">👆 Swipe anywhere to turn</div>
   <div id="dpad" aria-label="Direction pad">
     <button data-d="U" aria-label="Up"><svg viewBox="0 0 24 24"><path d="M12 5l7 9H5z" fill="currentColor" stroke="#2B1B4D" stroke-width="2" stroke-linejoin="round"/></svg></button>
     <button data-d="L" aria-label="Left"><svg viewBox="0 0 24 24"><path d="M5 12l9-7v14z" fill="currentColor" stroke="#2B1B4D" stroke-width="2" stroke-linejoin="round"/></svg></button>
@@ -870,9 +850,7 @@ function fit(){
   let s = Math.floor(Math.min(r.width, r.height - 12));
   s = Math.max(180, Math.min(s, 760));
   frameEl.style.width = frameEl.style.height = s + "px";
-  const fcs = getComputedStyle(frameEl), ccs = getComputedStyle(cv);
-  const chrome = 2 * (parseFloat(fcs.paddingLeft) + parseFloat(fcs.borderLeftWidth) + parseFloat(ccs.borderLeftWidth));
-  bs = s - (chrome || 32); cell = bs / W; dpr = Math.min(2, window.devicePixelRatio || 1);
+  bs = s - 32; cell = bs / W; dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.width = Math.round(bs*dpr); cv.height = Math.round(bs*dpr);
   cv.style.width = cv.style.height = bs + "px";
   $("#hud").style.maxWidth = s + "px";
@@ -1938,57 +1916,33 @@ addEventListener("keydown", e => {
 }, {passive:false});
 addEventListener("pointerdown", audioOn, {capture:true});
 
-let sw = null, swipes = 0;
+let sw = null;
 const appEl = $("#app");
 const swipeDir = (dx, dy) => Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "R" : "L") : (dy > 0 ? "D" : "U");
-const SWIPE_MIN = 12, SWIPE_NEXT = 16;   // px of travel before a swipe counts (first one / chained turns)
-const notGameTap = t => t && t.closest && t.closest("#dpad, #hud, button, a, input, textarea");
-function swStart(x, y, target){
-  if (notGameTap(target)) return false;
-  sw = {ax:x, ay:y, lx:x, ly:y, fired:false};
+const clearAxis = (dx, dy) => Math.max(Math.abs(dx), Math.abs(dy)) >= 1.4 * Math.min(Math.abs(dx), Math.abs(dy));
+appEl.addEventListener("pointerdown", e => {
+  if (e.target.closest && e.target.closest("#dpad")) return;   // pad taps aren't swipes
+  sw = {x:e.clientX, y:e.clientY, fired:false, t:performance.now()};
   if (state === "count") skipCountdown();
   else if (state === "dying") afterBump();
-  return true;
-}
-function swMove(x, y){
+});
+appEl.addEventListener("pointermove", e => {
   if (!sw) return;
-  // if the finger turned back (the little wind-up wiggle), start measuring again from the turning point
-  const mx = x - sw.lx, my = y - sw.ly, ax = x - sw.ax, ay = y - sw.ay;
-  if (mx*ax + my*ay < 0) { sw.ax = sw.lx; sw.ay = sw.ly; }
-  sw.lx = x; sw.ly = y;
-  const dx = x - sw.ax, dy = y - sw.ay;
-  if (Math.hypot(dx, dy) < (sw.fired ? SWIPE_NEXT : SWIPE_MIN)) return;
-  // diagonal-ish? go with whichever way is stronger, unless it's a dead-even 45°
-  if (Math.max(Math.abs(dx), Math.abs(dy)) < 1.15 * Math.min(Math.abs(dx), Math.abs(dy))) return;
-  fireSwipe(swipeDir(dx, dy));
-  sw.ax = x; sw.ay = y; sw.fired = true;
-}
-function swEnd(x, y){
-  if (sw && !sw.fired) { const dx = x - sw.ax, dy = y - sw.ay; if (Math.hypot(dx, dy) >= 8) fireSwipe(swipeDir(dx, dy)); }
+  const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+  // finger wobble at the start of a swipe used to fire the wrong way (swipe right → snake went left)
+  if (Math.hypot(dx,dy) < (sw.fired ? 30 : 20) || !clearAxis(dx, dy)) return;
+  queueDir(swipeDir(dx, dy));
+  sw = {x:e.clientX, y:e.clientY, fired:true, t:performance.now()};
+});
+addEventListener("pointerup", e => {
+  // a fast flick can end before enough move events arrive: read it from start → end
+  if (sw && !sw.fired) { const dx = e.clientX - sw.x, dy = e.clientY - sw.y; if (Math.hypot(dx,dy) >= 10) queueDir(swipeDir(dx, dy)); }
   sw = null;
-}
-function fireSwipe(d){
-  queueDir(d);
-  if (++swipes === 6) { const h = $("#swipeHint"); if (h) h.classList.add("gone"); }
-}
-// phones: raw touch events (they don't get cancelled mid-swipe like pointer events can on iOS)
-appEl.addEventListener("touchstart", e => { const t = e.changedTouches[0]; swStart(t.clientX, t.clientY, e.target); }, {passive:true});
-appEl.addEventListener("touchmove", e => { const t = e.changedTouches[0]; swMove(t.clientX, t.clientY); }, {passive:true});
-appEl.addEventListener("touchend", e => { const t = e.changedTouches[0]; swEnd(t.clientX, t.clientY); });
-appEl.addEventListener("touchcancel", () => { sw = null; });
-// mouse / pen drags on computers
-appEl.addEventListener("pointerdown", e => { if (e.pointerType !== "touch") swStart(e.clientX, e.clientY, e.target); });
-appEl.addEventListener("pointermove", e => { if (e.pointerType !== "touch") swMove(e.clientX, e.clientY); });
-addEventListener("pointerup", e => { if (e.pointerType !== "touch") swEnd(e.clientX, e.clientY); });
+});
 // stop the page scrolling / pull-to-refresh / back-swipe while playing
 document.addEventListener("touchmove", e => { if (state === "play" || state === "count" || state === "dying") e.preventDefault(); }, {passive:false});
-addEventListener("pointercancel", e => { if (e.pointerType !== "touch") sw = null; });
-document.querySelectorAll("#dpad button").forEach(b => {
-  b.addEventListener("pointerdown", e => { e.preventDefault(); queueDir(b.dataset.d);
-    b.classList.add("hit"); setTimeout(() => b.classList.remove("hit"), 120);
-    if (navigator.vibrate) try { navigator.vibrate(8); } catch (err) {} });
-  b.addEventListener("contextmenu", e => e.preventDefault());
-});
+addEventListener("pointercancel", () => { sw = null; });
+document.querySelectorAll("#dpad button").forEach(b => b.addEventListener("pointerdown", e => { e.preventDefault(); queueDir(b.dataset.d); }));
 document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
 
 document.querySelectorAll(".tog").forEach(b => b.addEventListener("click", () => {
@@ -2201,14 +2155,6 @@ $("#wnMap").addEventListener("click", () => { SFX.click(); showMap(); });
 
 /* ---------- boot ---------- */
 if (/netlify\.app$/i.test(location.hostname)) document.documentElement.classList.add("hosted");
-// TEST LINKS ONLY (*.vercel.app previews): ?level=18 unlocks up to that level and opens it, so features can be tried without signing in
-(() => { const m = /[?&]level=(\d+)/.exec(location.search);
-  if (!m || !/\.vercel\.app$/i.test(location.hostname) || /^jelly-munch-site\.vercel\.app$/i.test(location.hostname)) return;
-  const n = Math.max(1, Math.min(200, +m[1]));
-  for (let i = 0; i < n-1; i++) if (!S.stars[i]) S.stars[i] = 2;
-  S.lifeBank = Math.max(S.lifeBank || 0, 50);
-  setTimeout(() => openLevel(n-1), 300);
-})();
 fit(); syncToggles(); showHome(); renderAccount(); initAuth(); handlePaymentReturn();
 if (/[?&]review=1/.test(location.search)) showRate(null);
 requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); });
